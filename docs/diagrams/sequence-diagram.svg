@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="980" viewBox="0 0 1700 980">
+  <rect width="1700" height="980" fill="#ffffff"/>
+  <text x="850" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#000000">Sequence Diagram - Tenant Inquiry Flow</text>
+
+  <rect x="60" y="80" width="180" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="150" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">Tenant</text>
+
+  <rect x="290" y="80" width="190" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="385" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">Client App</text>
+
+  <rect x="540" y="80" width="190" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="635" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">API Server</text>
+
+  <rect x="790" y="80" width="200" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="890" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">Auth Service</text>
+
+  <rect x="1050" y="80" width="220" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="1160" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">Property Service</text>
+
+  <rect x="1330" y="80" width="220" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="1440" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">Inquiry Service</text>
+
+  <rect x="1560" y="80" width="110" height="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+  <text x="1615" y="109" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#000000">DB</text>
+
+  <line x1="150" y1="125" x2="150" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+  <line x1="385" y1="125" x2="385" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+  <line x1="635" y1="125" x2="635" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+  <line x1="890" y1="125" x2="890" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+  <line x1="1160" y1="125" x2="1160" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+  <line x1="1440" y1="125" x2="1440" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+  <line x1="1615" y1="125" x2="1615" y2="920" stroke="#000000" stroke-width="1.5" stroke-dasharray="8 8"/>
+
+  <line x1="150" y1="170" x2="385" y2="170" stroke="#000000" stroke-width="2"/>
+  <polygon points="385,170 375,164 375,176" fill="#000000"/>
+  <text x="268" y="160" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">1. Login(email, password)</text>
+
+  <line x1="385" y1="220" x2="635" y2="220" stroke="#000000" stroke-width="2"/>
+  <polygon points="635,220 625,214 625,226" fill="#000000"/>
+  <text x="510" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">2. POST /api/auth/login</text>
+
+  <line x1="635" y1="270" x2="890" y2="270" stroke="#000000" stroke-width="2"/>
+  <polygon points="890,270 880,264 880,276" fill="#000000"/>
+  <text x="762" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">3. Validate credentials</text>
+
+  <line x1="890" y1="320" x2="1615" y2="320" stroke="#000000" stroke-width="2"/>
+  <polygon points="1615,320 1605,314 1605,326" fill="#000000"/>
+  <text x="1250" y="310" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">4. Find user + verify password</text>
+
+  <line x1="1615" y1="360" x2="890" y2="360" stroke="#000000" stroke-width="2"/>
+  <polygon points="890,360 900,354 900,366" fill="#000000"/>
+  <text x="1250" y="350" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">5. User data</text>
+
+  <line x1="890" y1="400" x2="635" y2="400" stroke="#000000" stroke-width="2"/>
+  <polygon points="635,400 645,394 645,406" fill="#000000"/>
+  <text x="762" y="390" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">6. Access token</text>
+
+  <line x1="635" y1="440" x2="385" y2="440" stroke="#000000" stroke-width="2"/>
+  <polygon points="385,440 395,434 395,446" fill="#000000"/>
+  <text x="510" y="430" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">7. 200 OK + token</text>
+
+  <line x1="150" y1="500" x2="385" y2="500" stroke="#000000" stroke-width="2"/>
+  <polygon points="385,500 375,494 375,506" fill="#000000"/>
+  <text x="268" y="490" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">8. Search properties</text>
+
+  <line x1="385" y1="540" x2="635" y2="540" stroke="#000000" stroke-width="2"/>
+  <polygon points="635,540 625,534 625,546" fill="#000000"/>
+  <text x="510" y="530" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">9. GET /api/properties?filters</text>
+
+  <line x1="635" y1="580" x2="1160" y2="580" stroke="#000000" stroke-width="2"/>
+  <polygon points="1160,580 1150,574 1150,586" fill="#000000"/>
+  <text x="897" y="570" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">10. Request filtered properties</text>
+
+  <line x1="1160" y1="620" x2="1615" y2="620" stroke="#000000" stroke-width="2"/>
+  <polygon points="1615,620 1605,614 1605,626" fill="#000000"/>
+  <text x="1387" y="610" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">11. Query properties</text>
+
+  <line x1="1615" y1="660" x2="1160" y2="660" stroke="#000000" stroke-width="2"/>
+  <polygon points="1160,660 1170,654 1170,666" fill="#000000"/>
+  <text x="1387" y="650" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">12. Property list</text>
+
+  <line x1="150" y1="720" x2="385" y2="720" stroke="#000000" stroke-width="2"/>
+  <polygon points="385,720 375,714 375,726" fill="#000000"/>
+  <text x="268" y="710" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">13. Send inquiry</text>
+
+  <line x1="385" y1="760" x2="635" y2="760" stroke="#000000" stroke-width="2"/>
+  <polygon points="635,760 625,754 625,766" fill="#000000"/>
+  <text x="510" y="750" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">14. POST /api/inquiries</text>
+
+  <line x1="635" y1="800" x2="1440" y2="800" stroke="#000000" stroke-width="2"/>
+  <polygon points="1440,800 1430,794 1430,806" fill="#000000"/>
+  <text x="1037" y="790" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">15. Create inquiry</text>
+
+  <line x1="1440" y1="840" x2="1615" y2="840" stroke="#000000" stroke-width="2"/>
+  <polygon points="1615,840 1605,834 1605,846" fill="#000000"/>
+  <text x="1527" y="830" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">16. Insert inquiry</text>
+
+  <line x1="1615" y1="880" x2="385" y2="880" stroke="#000000" stroke-width="2"/>
+  <polygon points="385,880 395,874 395,886" fill="#000000"/>
+  <text x="1000" y="870" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" fill="#000000">17. 201 Created</text>
+</svg>

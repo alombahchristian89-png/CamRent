@@ -1,0 +1,33 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff' }}}%%
+sequenceDiagram
+    participant Tenant
+    participant ClientApp as Client Application
+    participant APIServer as API Server
+    participant Auth as Auth Service
+    participant PropertyService as Property Service
+    participant InquiryService as Inquiry Service
+    participant DB as Database
+
+    Tenant->>ClientApp: Login with email and password
+    ClientApp->>APIServer: POST /api/auth/login
+    APIServer->>Auth: Validate credentials
+    Auth->>DB: Find user and verify password
+    DB-->>Auth: User data
+    Auth-->>APIServer: Access token
+    APIServer-->>ClientApp: 200 OK + token
+
+    Tenant->>ClientApp: Search properties
+    ClientApp->>APIServer: GET /api/properties?filters
+    APIServer->>PropertyService: Request filtered properties
+    PropertyService->>DB: Query properties
+    DB-->>PropertyService: Property list
+    PropertyService-->>APIServer: Property list
+    APIServer-->>ClientApp: 200 OK + properties
+
+    Tenant->>ClientApp: Send inquiry for property
+    ClientApp->>APIServer: POST /api/inquiries
+    APIServer->>InquiryService: Create inquiry
+    InquiryService->>DB: Insert inquiry and update property inquiry count
+    DB-->>InquiryService: Inquiry saved
+    InquiryService-->>APIServer: Inquiry created
+    APIServer-->>ClientApp: 201 Created

@@ -1,0 +1,44 @@
+{
+  "name": "camrent-server",
+  "version": "1.0.0",
+  "description": "Backend for CAMRENT rental platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node src/utils/seed.js",
+    "test:supabase": "node test-supabase-connection.js",
+    "bootstrap:db": "node src/utils/bootstrapDatabase.js",
+    "verify:supabase": "node src/utils/verifySupabase.js",
+    "setup:db": "node src/utils/setupDatabase.js",
+    "setup": "node setup-wizard.js"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^1.40.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.10.0",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.5.0",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^6.10.1",
+    "pg": "^8.22.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "rental",
+    "cameroon",
+    "real-estate"
+  ],
+  "author": "CAMRENT Team",
+  "license": "MIT"
+}

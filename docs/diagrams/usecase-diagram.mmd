@@ -1,0 +1,39 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#000000', 'lineColor': '#000000', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff' }}}%%
+flowchart LR
+    T[Tenant]
+    L[Landlord]
+    A[Admin]
+
+    UC1[Register / Login]
+    UC2[Browse Properties]
+    UC3[Filter and View Property Details]
+    UC4[Save Favorite]
+    UC5[Send Inquiry]
+
+    UC6[Submit Verification]
+    UC7[Create / Edit / Delete Property]
+    UC8[Manage Inquiries]
+    UC9[View Landlord Dashboard]
+
+    UC10[Review Landlord Verification]
+    UC11[Manage Users]
+    UC12[Manage Properties]
+    UC13[View Platform Analytics]
+
+    T --- UC1
+    T --- UC2
+    T --- UC3
+    T --- UC4
+    T --- UC5
+
+    L --- UC1
+    L --- UC6
+    L --- UC7
+    L --- UC8
+    L --- UC9
+
+    A --- UC1
+    A --- UC10
+    A --- UC11
+    A --- UC12
+    A --- UC13
