@@ -43,20 +43,27 @@ const { supabase } = require('./src/services/supabaseClient');
 const app = express();
 app.set('trust proxy', 1);
 
-const configuredOrigins = (process.env.FRONTEND_URL || '')
+const configuredOrigins = (readEnv('FRONTEND_URL') || '')
   .split(',')
   .map((origin) => origin.trim())
+  .map((origin) => origin.replace(/\/+$/, ''))
   .filter(Boolean);
 
 const corsOptions = configuredOrigins.length > 0
   ? {
       origin: (origin, callback) => {
-        if (!origin || configuredOrigins.includes(origin)) {
+        const normalizedOrigin = String(origin || '').replace(/\/+$/, '');
+
+        if (!origin || configuredOrigins.includes(normalizedOrigin)) {
           return callback(null, true);
         }
 
+        console.warn(`[CORS] Blocked origin: ${origin}`);
         return callback(null, false);
-      }
+      },
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true
     }
   : {};
 
@@ -85,12 +92,12 @@ const authLimiter = rateLimit({
   }
 });
 
-app.use('/api', globalLimiter);
-
 // Middleware
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/api', globalLimiter);
 
 async function checkSupabaseConnection() {
   if (isPlaceholder(readEnv('NEXT_PUBLIC_SUPABASE_URL'))) {
