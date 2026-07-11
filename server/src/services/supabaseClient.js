@@ -1,11 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const readEnv = (name) => String(process.env[name] || '').trim().replace(/^['\"]|['\"]$/g, '');
+const isPlaceholder = (value) => {
+  const normalized = String(value || '').toLowerCase();
+  return !normalized
+    || normalized.includes('replace_me')
+    || normalized.includes('your-project-ref')
+    || normalized.includes('example');
+};
+
+const supabaseUrl = readEnv('NEXT_PUBLIC_SUPABASE_URL');
+const supabaseServiceRoleKey = readEnv('SUPABASE_SERVICE_ROLE_KEY');
+const supabasePublishableKey = readEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
 const supabaseKey = supabaseServiceRoleKey || supabasePublishableKey;
 
-if (!supabaseUrl || !supabaseKey) {
+if (isPlaceholder(supabaseUrl) || isPlaceholder(supabaseKey)) {
   throw new Error('Supabase env vars are missing. Configure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).');
 }
 

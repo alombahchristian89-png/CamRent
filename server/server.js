@@ -3,16 +3,29 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { loadEnv } = require('./src/utils/loadEnv');
 
-loadEnv(__dirname);
+loadEnv(__dirname, { allowExampleFallback: false });
+
+const readEnv = (name) => String(process.env[name] || '').trim().replace(/^['\"]|['\"]$/g, '');
+const isPlaceholder = (value) => {
+  const normalized = String(value || '').toLowerCase();
+  return !normalized
+    || normalized.includes('replace_me')
+    || normalized.includes('your-project-ref')
+    || normalized.includes('your-domain.com')
+    || normalized.includes('example');
+};
 
 const validateRequiredEnv = () => {
   const missing = [];
+  const supabaseUrl = readEnv('NEXT_PUBLIC_SUPABASE_URL');
+  const serviceRoleKey = readEnv('SUPABASE_SERVICE_ROLE_KEY');
+  const publishableKey = readEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (isPlaceholder(supabaseUrl)) {
     missing.push('NEXT_PUBLIC_SUPABASE_URL');
   }
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+  if (isPlaceholder(serviceRoleKey) && isPlaceholder(publishableKey)) {
     missing.push('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
   }
 
@@ -80,14 +93,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 async function checkSupabaseConnection() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  if (isPlaceholder(readEnv('NEXT_PUBLIC_SUPABASE_URL'))) {
     return {
       ok: false,
       message: 'NEXT_PUBLIC_SUPABASE_URL is missing'
     };
   }
 
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+  if (isPlaceholder(readEnv('SUPABASE_SERVICE_ROLE_KEY')) && isPlaceholder(readEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'))) {
     return {
       ok: false,
       message: 'SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) is missing'
