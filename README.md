@@ -45,7 +45,7 @@ A comprehensive rental platform connecting tenants and landlords in Cameroon wit
 
 ### Backend
 - **Node.js** with Express.js
-- **MongoDB** with Mongoose ODM
+- **Supabase Postgres** with `@supabase/supabase-js`
 - **JWT** for authentication
 - **Multer** + **Cloudinary** for file uploads
 - **bcryptjs** for password hashing
@@ -64,7 +64,7 @@ A comprehensive rental platform connecting tenants and landlords in Cameroon wit
 ## 📋 Prerequisites
 
 - Node.js (v16 or higher)
-- MongoDB (local or cloud instance)
+- Supabase project
 - Cloudinary account (for file uploads)
 
 ## 🚀 Installation & Setup
@@ -85,18 +85,22 @@ npm install
 Create a `.env` file in the server directory:
 ```env
 PORT=5000
-MONGODB_URI=mongodb://localhost:27017/camrent
 JWT_SECRET=your_super_secret_jwt_key_here
 JWT_REFRESH_SECRET=your_super_secret_refresh_key_here
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
+SUPABASE_DB_URL=postgresql://postgres:password@db.your-project-ref.supabase.co:5432/postgres?sslmode=require
 NODE_ENV=development
 ```
 
 ### 4. Database Setup
-- Install and run MongoDB locally or use MongoDB Atlas
-- The database will be created automatically on first run
+- Configure Supabase credentials in `server/.env`
+- Run `npm run bootstrap:db` once to create base tables
+- Run `npm run verify:supabase` to verify table access
 
 ### 5. Seed Sample Data (Optional)
 ```bash
@@ -125,7 +129,7 @@ npm run dev
 
 ## 📊 Database Schema
 
-### Users Collection
+### Users Table
 ```javascript
 {
   name: String,
@@ -143,7 +147,7 @@ npm run dev
 }
 ```
 
-### Properties Collection
+### Properties Table
 ```javascript
 {
   title: String,
@@ -160,7 +164,7 @@ npm run dev
   bedrooms: Number,
   bathrooms: Number,
   area: Number,
-  landlord: ObjectId (ref: User),
+  landlordId: Number (ref users.id),
   isApproved: Boolean,
   isActive: Boolean,
   views: Number,
@@ -171,21 +175,21 @@ npm run dev
 }
 ```
 
-### Favorites Collection
+### Favorites Table
 ```javascript
 {
-  userId: ObjectId (ref: User),
-  propertyId: ObjectId (ref: Property),
+  userId: Number (ref users.id),
+  propertyId: Number (ref properties.id),
   createdAt: Date
 }
 ```
 
-### Inquiries Collection
+### Inquiries Table
 ```javascript
 {
-  tenantId: ObjectId (ref: User),
-  landlordId: ObjectId (ref: User),
-  propertyId: ObjectId (ref: Property),
+  tenantId: Number (ref users.id),
+  landlordId: Number (ref users.id),
+  propertyId: Number (ref properties.id),
   message: String,
   status: String (pending/responded/closed),
   tenantContact: {
@@ -310,7 +314,7 @@ npm start
 
 ### Environment Variables for Production
 - Set `NODE_ENV=production`
-- Use a secure MongoDB connection string
+- Use valid Supabase URL/keys and `SUPABASE_DB_URL`
 - Configure production Cloudinary settings
 - Use strong JWT secrets
 - Set up proper CORS origins

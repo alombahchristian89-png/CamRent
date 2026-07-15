@@ -13,7 +13,7 @@
   - `client/src/services/supabaseClient.js` (frontend)
 
 ### 2. **Backend Controllers Migrated to Supabase**
-All API controllers now use Supabase instead of MongoDB:
+All API controllers now use Supabase:
 
 | Controller | Status | Changes |
 |-----------|--------|---------|
@@ -126,18 +126,7 @@ curl http://localhost:5000/api/properties
 
 ## 📊 Architecture Changes
 
-### Before (MongoDB)
-```
-Frontend (React)
-    ↓
-Express Backend
-    ↓
-Mongoose Models
-    ↓
-MongoDB (Local/Atlas)
-```
-
-### After (Supabase)
+### Current (Supabase)
 ```
 Frontend (React + Supabase Client)
     ↓
@@ -151,7 +140,7 @@ PostgreSQL Database (Supabase-hosted)
 ```
 
 **Benefits:**
-- ✅ Hosted database (no MongoDB setup needed)
+- ✅ Hosted PostgreSQL database
 - ✅ Built-in authentication (Supabase Auth)
 - ✅ Real-time capabilities (Supabase Realtime)
 - ✅ Built-in file storage (Supabase Storage)
@@ -162,14 +151,7 @@ PostgreSQL Database (Supabase-hosted)
 
 ## 🔄 What Changed in Controllers
 
-### Before (Mongoose)
-```javascript
-const user = await User.findById(userId);
-const properties = await Property.find({ landlord_id: userId });
-await Inquiry.updateOne({ _id: inquiryId }, { status: 'responded' });
-```
-
-### After (Supabase)
+### Query Pattern (Supabase)
 ```javascript
 const { data: user } = await supabase.from('users').select('*').eq('id', userId).single();
 const { data: properties } = await supabase.from('properties').select('*').eq('landlord_id', userId);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { 
   Shield, 
@@ -28,6 +29,7 @@ const resolveDocumentUrl = (doc) => {
 const isViewableUrl = (url) => /^https?:\/\//i.test(String(url || ''))
 
 const AdminLandlords = () => {
+  const location = useLocation()
   const [language, setLanguage] = useState('en')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -37,6 +39,15 @@ const AdminLandlords = () => {
   const [rejectionReason, setRejectionReason] = useState('')
   const [adminNotes, setAdminNotes] = useState('')
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const statusParam = params.get('status')
+    if (statusParam && ['all', 'pending', 'approved', 'rejected'].includes(statusParam)) {
+      setFilterStatus(statusParam)
+      setPage(1)
+    }
+  }, [location.search])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -113,6 +124,13 @@ const AdminLandlords = () => {
     if (verificationAction === 'rejected' && !rejectionReason.trim()) {
       toast.error(t('adminLandlordsProvideRejectionReason', 'Please provide a rejection reason'))
       return
+    }
+    if (verificationAction === 'approved') {
+      const docs = Array.isArray(viewingLandlord.documents) ? viewingLandlord.documents : []
+      if (docs.length === 0) {
+        toast.error(t('adminLandlordsNoDocuments', 'Cannot approve: this landlord has not submitted any verification documents.'))
+        return
+      }
     }
     verifyMutation.mutate({
       id: viewingLandlord._id,

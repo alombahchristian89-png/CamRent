@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { authAPI } from '../services/api'
 import toast from 'react-hot-toast'
 import { getSavedLanguage, saveLanguage } from '../utils/preferences'
+import { clearClientSessionData, clearSensitiveData } from '../utils/sessionCleanup'
 import { AuthContext } from './authContextStore'
 
 const normalizeLanguage = (language, fallback = 'en') => {
@@ -51,9 +52,7 @@ export const AuthProvider = ({ children }) => {
           }
         } catch (error) {
           // Token is invalid, clear storage
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('user')
+          clearClientSessionData({ hardClear: true })
           setUser(null)
         }
       }
@@ -114,10 +113,8 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const logout = () => {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
+  const logout = async () => {
+    await clearSensitiveData()
     setUser(null)
     toast.success('Logged out successfully')
   }
@@ -184,7 +181,7 @@ export const AuthProvider = ({ children }) => {
       return { success: true }
     } catch (error) {
       // Refresh token failed, logout user
-      logout()
+      await logout()
       return { success: false }
     }
   }

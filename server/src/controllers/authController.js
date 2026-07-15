@@ -17,6 +17,16 @@ const getMissingUsersColumnName = (error) => {
   return null;
 };
 
+const normalizePhone = (phone) => {
+  if (!phone) return null;
+  const cleaned = String(phone).trim().replace(/[^\d+]/g, '');
+  if (!cleaned) return null;
+  if (cleaned.startsWith('+')) {
+    return `+${cleaned.slice(1).replace(/\+/g, '')}`;
+  }
+  return cleaned.replace(/\+/g, '');
+};
+
 // Generate JWT tokens
 const generateTokens = (userId) => {
   const accessToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
@@ -45,12 +55,14 @@ const register = async (req, res) => {
     const { name, email, password, role, phone, language } = req.body;
     const safeRole = role === 'landlord' ? 'landlord' : 'tenant';
     const safeLanguage = language === 'fr' ? 'fr' : 'en';
+    const safeEmail = String(email || '').trim().toLowerCase();
+    const safePhone = normalizePhone(phone);
 
     // Check if user already exists
     const { data: existingUser, error: existingUserError } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', safeEmail)
       .maybeSingle();
 
     if (existingUserError) throw existingUserError;
@@ -62,6 +74,23 @@ const register = async (req, res) => {
       });
     }
 
+    if (safePhone) {
+      const { data: existingPhoneUser, error: existingPhoneError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', safePhone)
+        .maybeSingle();
+
+      if (existingPhoneError) throw existingPhoneError;
+
+      if (existingPhoneUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this phone number already exists'
+        });
+      }
+    }
+
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -69,8 +98,8 @@ const register = async (req, res) => {
     let userRow = null;
     let insertPayload = {
       name,
-      email,
-      phone: phone || null,
+      email: safeEmail,
+      phone: safePhone,
       password: hashedPassword,
       role: safeRole,
       language: safeLanguage,
@@ -301,11 +330,30 @@ const updateProfile = async (req, res) => {
 
     const { name, phone, profileImage, language, preferredLanguage } = req.body;
     const nextLanguage = language === 'fr' ? 'fr' : language === 'en' ? 'en' : preferredLanguage === 'fr' ? 'fr' : 'en';
+    const normalizedPhone = normalizePhone(phone ?? req.user.phone ?? null);
+
+    if (normalizedPhone) {
+      const { data: existingPhoneUser, error: existingPhoneError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', normalizedPhone)
+        .neq('id', req.user._id)
+        .maybeSingle();
+
+      if (existingPhoneError) throw existingPhoneError;
+
+      if (existingPhoneUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number is already in use by another account'
+        });
+      }
+    }
 
     let userRow = null;
     let updatePayload = {
       name: name ?? req.user.name,
-      phone: phone ?? req.user.phone,
+      phone: normalizedPhone,
       profile_image: profileImage ?? req.user.profileImage,
       language: nextLanguage,
       preferred_language: nextLanguage,

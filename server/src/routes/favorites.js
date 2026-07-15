@@ -9,7 +9,7 @@ const addFavoriteValidation = [
   body('propertyId')
     .notEmpty()
     .withMessage('Property ID is required')
-    .isMongoId()
+    .isInt({ min: 1 })
     .withMessage('Invalid Property ID')
 ];
 

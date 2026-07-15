@@ -634,6 +634,7 @@ const AdminUsers = () => {
                               type="password"
                               value={newPassword}
                               onChange={(event) => setNewPassword(event.target.value)}
+                              autoComplete="new-password"
                               className="input-field w-full"
                               placeholder={t('adminUsersEnterNewPassword', 'Enter new password')}
                             />
@@ -647,6 +648,7 @@ const AdminUsers = () => {
                               type="password"
                               value={confirmNewPassword}
                               onChange={(event) => setConfirmNewPassword(event.target.value)}
+                              autoComplete="new-password"
                               className="input-field w-full"
                               placeholder={t('adminUsersConfirmNewPasswordPlaceholder', 'Confirm new password')}
                             />

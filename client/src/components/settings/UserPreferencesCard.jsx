@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Globe2, Monitor, Moon, Sun } from 'lucide-react'
+import { Monitor, Moon, Sun } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '../../context/useAuth'
 import {
   getSavedLanguage,
   getSavedThemeMode,
-  saveLanguage,
   saveThemeMode
 } from '../../utils/preferences'
 import { translate } from '../../utils/i18n'
+import LanguageIconMenu from './LanguageIconMenu'
 
 const UserPreferencesCard = ({ compact = false }) => {
   const [themeMode, setThemeMode] = useState('system')
@@ -22,11 +22,6 @@ const UserPreferencesCard = ({ compact = false }) => {
     { value: 'system', label: translate(language, 'themeSystem', 'System'), icon: Monitor }
   ]
 
-  const languageOptions = [
-    { value: 'en', label: translate(language, 'languageEnglish', 'English') },
-    { value: 'fr', label: translate(language, 'languageFrench', 'French') }
-  ]
-
   useEffect(() => {
     setThemeMode(getSavedThemeMode())
     setLanguage(getSavedLanguage())
@@ -38,15 +33,17 @@ const UserPreferencesCard = ({ compact = false }) => {
     toast.success(`${translate(language, 'toastThemeUpdated', 'Theme updated')}: ${translate(language, `theme${nextThemeMode.charAt(0).toUpperCase()}${nextThemeMode.slice(1)}`, nextThemeMode)}`)
   }
 
-  const handleLanguageChange = async (event) => {
-    const nextLanguage = event.target.value
+  const handleLanguageChange = async (nextLanguage) => {
+    if (!nextLanguage || nextLanguage === language) {
+      return
+    }
+
     setLanguage(nextLanguage)
     setIsUpdatingLanguage(true)
 
     const result = await updateLanguagePreference(nextLanguage)
 
     if (result.success) {
-      saveLanguage(result.language)
       toast.success(result.language === 'fr' ? translate(result.language, 'toastLanguageFrench', 'Language set to French') : translate(result.language, 'toastLanguageEnglish', 'Language set to English'))
     } else {
       setLanguage(result.language || getSavedLanguage())
@@ -86,24 +83,17 @@ const UserPreferencesCard = ({ compact = false }) => {
       </div>
 
       <div>
-        <label htmlFor="language-setting" className="mb-2 block text-sm font-semibold text-slate-900">
+        <label className="mb-2 block text-sm font-semibold text-slate-900">
           {translate(language, 'prefLanguageTitle', 'Language')}
         </label>
-        <div className="relative max-w-xs">
-          <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <select
-            id="language-setting"
-            value={language}
-            onChange={handleLanguageChange}
+        <div className="max-w-xs">
+          <LanguageIconMenu
+            language={language}
+            onSelect={handleLanguageChange}
             disabled={isUpdatingLanguage}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-primary"
-          >
-            {languageOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            buttonClassName="h-11 w-11"
+            menuClassName="left-0 right-auto"
+          />
         </div>
         <p className="mt-2 text-xs text-slate-500">{translate(language, 'prefLanguageHint', 'Available languages: English and French.')}</p>
       </div>

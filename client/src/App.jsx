@@ -1,48 +1,50 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/useAuth'
-import Layout from './components/Layout'
 import LoadingSpinner from './components/LoadingSpinner'
 import { getSavedLanguage } from './utils/preferences'
 import { translateDocumentText } from './utils/i18n'
 
 // Auth Pages
-import Login from './pages/auth/Login'
-import Register from './pages/auth/Register'
-import ForgotPassword from './pages/auth/ForgotPassword'
-import ResetPassword from './pages/auth/ResetPassword'
+const Layout = lazy(() => import('./components/Layout'))
+const Login = lazy(() => import('./pages/auth/Login'))
+const Register = lazy(() => import('./pages/auth/Register'))
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
 
 // Tenant Pages
-import Home from './pages/tenant/Home'
-import PropertyList from './pages/tenant/PropertyList'
-import PropertyDetail from './pages/tenant/PropertyDetail'
-import TenantDashboard from './pages/tenant/Dashboard'
-import Favorites from './pages/tenant/Favorites'
-import Inquiries from './pages/tenant/Inquiries'
-import TenantNotifications from './pages/tenant/Notifications'
-import TenantRequests from './pages/tenant/Requests'
-import TenantShell from './components/tenant/TenantShell'
+const Home = lazy(() => import('./pages/tenant/Home'))
+const PropertyList = lazy(() => import('./pages/tenant/PropertyList'))
+const PropertyDetail = lazy(() => import('./pages/tenant/PropertyDetail'))
+const TenantDashboard = lazy(() => import('./pages/tenant/Dashboard'))
+const Favorites = lazy(() => import('./pages/tenant/Favorites'))
+const Inquiries = lazy(() => import('./pages/tenant/Inquiries'))
+const TenantNotifications = lazy(() => import('./pages/tenant/Notifications'))
+const TenantRequests = lazy(() => import('./pages/tenant/Requests'))
+const TenantShell = lazy(() => import('./components/tenant/TenantShell'))
 
 // Landlord Pages
-import LandlordDashboard from './pages/landlord/Dashboard'
-import MyProperties from './pages/landlord/MyProperties'
-import AddProperty from './pages/landlord/AddProperty'
-import EditProperty from './pages/landlord/EditProperty'
-import Verification from './pages/landlord/Verification'
-import LandlordInquiries from './pages/landlord/Inquiries'
-import LandlordNotifications from './pages/landlord/Notifications'
-import LandlordRequests from './pages/landlord/Requests'
+const LandlordDashboard = lazy(() => import('./pages/landlord/Dashboard'))
+const MyProperties = lazy(() => import('./pages/landlord/MyProperties'))
+const AddProperty = lazy(() => import('./pages/landlord/AddProperty'))
+const EditProperty = lazy(() => import('./pages/landlord/EditProperty'))
+const Verification = lazy(() => import('./pages/landlord/Verification'))
+const LandlordInquiries = lazy(() => import('./pages/landlord/Inquiries'))
+const LandlordNotifications = lazy(() => import('./pages/landlord/Notifications'))
+const LandlordRequests = lazy(() => import('./pages/landlord/Requests'))
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard'
-import AdminUsers from './pages/admin/Users'
-import AdminLandlords from './pages/admin/Landlords'
-import AdminProperties from './pages/admin/Properties'
-import AdminInquiries from './pages/admin/Inquiries'
-import AdminNotifications from './pages/admin/Notifications'
-import AdminAuditLogs from './pages/admin/AuditLogs'
-import AdminSettings from './pages/admin/Settings'
-import SettingsPage from './pages/shared/Settings'
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
+const AdminUsers = lazy(() => import('./pages/admin/Users'))
+const AdminLandlords = lazy(() => import('./pages/admin/Landlords'))
+const AdminProperties = lazy(() => import('./pages/admin/Properties'))
+const AdminInquiries = lazy(() => import('./pages/admin/Inquiries'))
+const AdminNotifications = lazy(() => import('./pages/admin/Notifications'))
+const AdminAuditLogs = lazy(() => import('./pages/admin/AuditLogs'))
+const AdminSettings = lazy(() => import('./pages/admin/Settings'))
+const AdminRevenue = lazy(() => import('./pages/admin/Revenue'))
+const AdminViewings = lazy(() => import('./pages/admin/Viewings'))
+const SettingsPage = lazy(() => import('./pages/shared/Settings'))
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -121,28 +123,43 @@ function App() {
     window.document.documentElement.setAttribute('lang', language === 'fr' ? 'fr' : 'en')
     translateDocumentText(rootNode, language)
 
+    // Dynamic DOM translation is only needed while French mode is active.
+    if (language !== 'fr') {
+      return undefined
+    }
+
+    const pendingNodes = new Set()
+    let frameId = null
+
+    const scheduleTranslate = (node) => {
+      if (!node) return
+      pendingNodes.add(node)
+
+      if (frameId !== null) return
+      frameId = window.requestAnimationFrame(() => {
+        pendingNodes.forEach((pendingNode) => {
+          translateDocumentText(pendingNode, language)
+        })
+        pendingNodes.clear()
+        frameId = null
+      })
+    }
+
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'characterData') {
-          translateDocumentText(mutation.target.parentElement || rootNode, language)
-          return
-        }
-
-        if (mutation.type === 'attributes') {
-          if (mutation.target?.nodeType === Node.ELEMENT_NODE) {
-            translateDocumentText(mutation.target, language)
-          }
+          scheduleTranslate(mutation.target?.parentElement || rootNode)
           return
         }
 
         mutation.addedNodes.forEach((node) => {
           if (node.nodeType === Node.TEXT_NODE) {
-            translateDocumentText(node.parentElement || rootNode, language)
+            scheduleTranslate(node.parentElement || rootNode)
             return
           }
 
           if (node.nodeType === Node.ELEMENT_NODE) {
-            translateDocumentText(node, language)
+            scheduleTranslate(node)
           }
         })
       })
@@ -151,18 +168,21 @@ function App() {
     observer.observe(rootNode, {
       childList: true,
       subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ['placeholder', 'title', 'aria-label', 'value']
+      characterData: true
     })
 
     return () => {
       observer.disconnect()
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId)
+      }
+      pendingNodes.clear()
     }
   }, [language])
 
   return (
     <div className="min-h-screen bg-background">
+      <Suspense fallback={<LoadingSpinner />}>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Layout />}>
@@ -231,6 +251,8 @@ function App() {
           <Route path="notifications" element={<AdminNotifications />} />
           <Route path="audit-logs" element={<AdminAuditLogs />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="revenue" element={<AdminRevenue />} />
+          <Route path="viewings" element={<AdminViewings />} />
         </Route>
 
         {/* 404 Route */}
@@ -244,6 +266,7 @@ function App() {
           </div>
         } />
       </Routes>
+      </Suspense>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from 'react-query'
 import { 
   Search, 
@@ -20,7 +20,8 @@ import { formatPropertyPrice } from '../../utils/currency'
 import { getVideoThumbnailUrl } from '../../utils/video'
 
 const Home = () => {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCity, setSelectedCity] = useState('')
 
@@ -47,26 +48,39 @@ const Home = () => {
     const params = new URLSearchParams()
     if (searchQuery) params.append('search', searchQuery)
     if (selectedCity) params.append('city', selectedCity)
-    window.location.href = `/properties?${params.toString()}`
+    const queryString = params.toString()
+    navigate(queryString ? `/properties?${queryString}` : '/properties')
+  }
+
+  const handleGetStarted = async (event) => {
+    event.preventDefault()
+
+    if (user) {
+      await logout()
+      navigate('/login', { replace: true })
+      return
+    }
+
+    navigate('/register', { replace: true })
   }
 
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-primary to-primaryHover text-white py-20">
+      <section className="relative bg-gradient-to-br from-primary to-primaryHover text-white py-14 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative">
             <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-6">
                 Find Your Perfect Home in Cameroon
               </h1>
-              <p className="text-xl md:text-2xl mb-8 text-white text-opacity-90">
+              <p className="text-base sm:text-xl md:text-2xl mb-8 text-white text-opacity-90">
                 Discover verified rental properties from trusted landlords
               </p>
               
               {/* Search Bar */}
               <form onSubmit={handleSearch} className="max-w-4xl mx-auto">
-                <div className="bg-white rounded-2xl shadow-xl p-2 flex flex-col lg:flex-row gap-2 items-center">
+                <div className="bg-white rounded-2xl shadow-xl p-2 flex flex-col lg:flex-row gap-2 items-stretch lg:items-center">
                   <div className="flex-1 flex items-center px-4 min-w-0">
                     <Search className="h-5 w-5 text-gray-400 mr-3" />
                     <input
@@ -82,7 +96,7 @@ const Home = () => {
                     <select
                       value={selectedCity}
                       onChange={(e) => setSelectedCity(e.target.value)}
-                      className="py-3 text-gray-900 focus:outline-none bg-transparent"
+                      className="py-3 text-gray-900 focus:outline-none bg-transparent w-full"
                     >
                       <option value="">All Cities</option>
                       {cities.map(city => (
@@ -90,17 +104,17 @@ const Home = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center gap-2 w-full lg:w-auto lg:ml-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full lg:flex lg:w-auto lg:ml-auto">
                     <button
                       type="submit"
-                      className="btn-primary whitespace-nowrap"
+                      className="btn-primary whitespace-nowrap w-full"
                     >
                       Search Properties
                     </button>
-                    <Link to="/register" className="btn-secondary whitespace-nowrap">
+                    <Link to="/register" onClick={handleGetStarted} className="btn-primary whitespace-nowrap w-full">
                       Get Started
                     </Link>
-                    <Link to={dashboardRoute} className="btn-outline whitespace-nowrap">
+                    <Link to={dashboardRoute} className="btn-primary whitespace-nowrap w-full">
                       {user ? 'Dashboard' : 'Sign In'}
                     </Link>
                   </div>
@@ -114,7 +128,7 @@ const Home = () => {
       {/* Stats Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-8">
             <div className="text-center">
               <div className="bg-primary bg-opacity-10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <Building className="h-8 w-8 text-primary" />
@@ -224,6 +238,8 @@ const Home = () => {
                       <img
                         src={property.images?.[0] || getVideoThumbnailUrl(property.videos?.[0])}
                         alt={property.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-48 object-cover"
                       />
                     )}

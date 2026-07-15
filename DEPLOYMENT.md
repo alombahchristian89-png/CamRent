@@ -16,7 +16,6 @@ Required Render environment variables:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`)
 - `SUPABASE_SERVICE_ROLE_KEY` (recommended for backend)
-- `MONGODB_URI` (if legacy Mongo utilities are still used)
 - `JWT_SECRET`
 - `JWT_REFRESH_SECRET`
 - `CLOUDINARY_CLOUD_NAME`

@@ -7,6 +7,7 @@ import { formatDateLabel, getInitials } from './admin/adminUtils'
 import { supabase } from '../services/supabaseClient'
 import { notificationAPI } from '../services/api'
 import { applyThemeMode, getSavedThemeMode } from '../utils/preferences'
+import { clearSensitiveData } from '../utils/sessionCleanup'
 import { translate } from '../utils/i18n'
 import toast from 'react-hot-toast'
 import { 
@@ -315,8 +316,10 @@ const Layout = () => {
     }
   }, [getConversationMessages, isLandlord, isTenant, queryClient, user?._id, user?.id])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    queryClient.clear()
+    await clearSensitiveData()
+    await logout()
     navigate('/')
     setIsMobileMenuOpen(false)
   }

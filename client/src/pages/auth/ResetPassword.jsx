@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react'
@@ -15,6 +15,7 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [tokenError, setTokenError] = useState(false)
+  const formRef = useRef(null)
 
   const token = searchParams.get('token')
 
@@ -30,6 +31,20 @@ const ResetPassword = () => {
   useEffect(() => {
     if (!token) {
       setTokenError(true)
+    }
+    
+    // Clear all input fields directly from the DOM
+    if (formRef.current) {
+      const inputs = formRef.current.querySelectorAll('input')
+      inputs.forEach((input) => {
+        input.value = ''
+      })
+    }
+    
+    // Clear any stored reset data
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('resetToken')
+      localStorage.removeItem('resetToken')
     }
   }, [token])
 
@@ -174,7 +189,7 @@ const ResetPassword = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-soft p-8">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form ref={formRef} className="space-y-6" onSubmit={handleSubmit(onSubmit)} autoComplete="off" noValidate>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 New Password
@@ -192,6 +207,10 @@ const ResetPassword = () => {
                     }
                   })}
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="input-field pl-10 pr-10"
                   placeholder="Enter new password"
                 />
@@ -226,6 +245,10 @@ const ResetPassword = () => {
                     validate: value => value === password || 'Passwords do not match'
                   })}
                   type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="input-field pl-10 pr-10"
                   placeholder="Confirm new password"
                 />

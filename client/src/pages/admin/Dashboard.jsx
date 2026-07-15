@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from 'react-query'
 import { motion } from 'framer-motion'
 import {
@@ -291,6 +291,7 @@ const PropertyPreviewCard = ({
 }
 
 const AdminDashboard = () => {
+  const navigate = useNavigate()
   const [language, setLanguage] = useState('en')
 
   useEffect(() => {
@@ -491,8 +492,14 @@ const AdminDashboard = () => {
     }))
   ].slice(0, 5)
 
-  const estimatedRevenue = Math.max(1800000, (stats.totalProperties || 0) * 140000 + (stats.totalLandlords || 0) * 12000)
-  const scheduledViewings = Math.max(6, Math.round((stats.totalInquiries || 0) * 0.35) + 2)
+  const estimatedRevenue = useMemo(() => {
+    // Calculate revenue from actual property prices
+    const totalPropertyValue = properties.reduce((sum, prop) => sum + (prop.price || 0), 0)
+    // Apply 15% platform commission
+    return Math.round(totalPropertyValue * 0.15)
+  }, [properties])
+
+  const scheduledViewings = stats.totalInquiries || 0
   const rentalTypeHeaderLabels = [
     t('adminRentalTypeDaily', 'Daily'),
     t('adminRentalTypeWeekly', 'Weekly'),
@@ -528,7 +535,8 @@ const AdminDashboard = () => {
       value: formatCompactNumber(stats.totalUsers),
       helper: t('adminStatTotalUsersHelper', 'Platform accounts across every role'),
       tone: 'blue',
-      trend: t('adminStatTotalUsersTrend', '+12.4% this month')
+      trend: t('adminStatTotalUsersTrend', '+12.4% this month'),
+      onClick: () => navigate('/admin/users')
     },
     {
       icon: Building,
@@ -536,7 +544,8 @@ const AdminDashboard = () => {
       value: formatCompactNumber(approvedLandlords),
       helper: `${formatCompactNumber(totalTenants)} ${t('adminStatVerifiedLandlordsHelperSuffix', 'tenants onboarded')}`,
       tone: 'violet',
-      trend: t('adminStatVerifiedLandlordsTrend', '+4 new approvals')
+      trend: t('adminStatVerifiedLandlordsTrend', '+4 new approvals'),
+      onClick: () => navigate('/admin/landlords?status=approved')
     },
     {
       icon: ShieldCheck,
@@ -544,7 +553,8 @@ const AdminDashboard = () => {
       value: formatCompactNumber(stats.pendingVerifications),
       helper: t('adminStatPendingVerificationsHelper', 'Need an admin review decision'),
       tone: 'amber',
-      trend: t('adminStatPendingVerificationsTrend', '2 urgent reviews')
+      trend: t('adminStatPendingVerificationsTrend', '2 urgent reviews'),
+      onClick: () => navigate('/admin/landlords?status=pending')
     },
     {
       icon: CheckCircle2,
@@ -552,7 +562,8 @@ const AdminDashboard = () => {
       value: formatCompactNumber(approvedLandlords),
       helper: t('adminStatApprovedLandlordsHelper', 'Verified and ready to list'),
       tone: 'emerald',
-      trend: t('adminStatApprovedLandlordsTrend', 'Healthy pipeline')
+      trend: t('adminStatApprovedLandlordsTrend', 'Healthy pipeline'),
+      onClick: () => navigate('/admin/landlords?status=approved')
     },
     {
       icon: Home,
@@ -560,7 +571,8 @@ const AdminDashboard = () => {
       value: formatCompactNumber(stats.totalProperties),
       helper: t('adminStatActivePropertiesHelper', 'Live property inventory'),
       tone: 'indigo',
-      trend: t('adminStatActivePropertiesTrend', '+3 new listings')
+      trend: t('adminStatActivePropertiesTrend', '+3 new listings'),
+      onClick: () => navigate('/admin/properties')
     },
     {
       icon: MessageSquare,
@@ -568,23 +580,26 @@ const AdminDashboard = () => {
       value: formatCompactNumber(stats.totalInquiries),
       helper: `${formatCompactNumber(suspendedUsers)} ${t('adminStatOpenInquiriesHelperSuffix', 'suspended users under review')}`,
       tone: 'rose',
-      trend: t('adminStatOpenInquiriesTrend', 'Fast response queue')
+      trend: t('adminStatOpenInquiriesTrend', 'Fast response queue'),
+      onClick: () => navigate('/admin/inquiries')
     },
     {
       icon: FileCheck2,
-      label: t('adminStatMonthlyRevenueLabel', 'Monthly revenue'),
+      label: t('adminStatMonthlyRevenueLabel', 'Platform commission'),
       value: `FCFA ${formatCompactNumber(estimatedRevenue)}`,
-      helper: t('adminStatMonthlyRevenueHelper', 'Estimated recurring value this month'),
+      helper: t('adminStatMonthlyRevenueHelper', '15% commission from property listings'),
       tone: 'violet',
-      trend: t('adminStatMonthlyRevenueTrend', '+8.2% vs last month')
+      trend: estimatedRevenue > 0 ? t('adminStatMonthlyRevenueTrend', 'Based on active properties') : 'No active listings',
+      onClick: () => navigate('/admin/revenue')
     },
     {
       icon: CalendarDays,
-      label: t('adminStatScheduledViewingsLabel', 'Scheduled viewings'),
+      label: t('adminStatScheduledViewingsLabel', 'Total inquiries'),
       value: scheduledViewings,
-      helper: t('adminStatScheduledViewingsHelper', 'Upcoming tours across the platform'),
+      helper: t('adminStatScheduledViewingsHelper', 'Property inquiries from tenants'),
       tone: 'blue',
-      trend: t('adminStatScheduledViewingsTrend', 'Balanced calendar')
+      trend: t('adminStatScheduledViewingsTrend', 'Active inquiries'),
+      onClick: () => navigate('/admin/viewings')
     }
   ]
 

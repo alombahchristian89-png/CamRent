@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../../context/useAuth'
-import { Eye, EyeOff, Building, Mail, Lock, User, Phone, Globe2 } from 'lucide-react'
+import { Eye, EyeOff, Building, Mail, Lock, User, Phone } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AuthLanguageSwitcher from '../../components/settings/AuthLanguageSwitcher'
 import { getSavedLanguage, saveLanguage } from '../../utils/preferences'
@@ -12,28 +12,47 @@ const Register = () => {
   const [loading, setLoading] = useState(false)
   const { register: registerUser } = useAuth()
   const navigate = useNavigate()
+  const formRef = useRef(null)
 
   const {
     register,
     handleSubmit,
     watch,
-    setValue,
+    reset,
     formState: { errors },
-  } = useForm({
-    defaultValues: {
-      language: getSavedLanguage()
-    }
-  })
+  } = useForm()
 
   useEffect(() => {
-    setValue('language', getSavedLanguage())
-  }, [setValue])
+    reset({
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      role: ''
+    })
+    setShowPassword(false)
+    
+    // Clear all input fields directly from the DOM
+    if (formRef.current) {
+      const inputs = formRef.current.querySelectorAll('input')
+      inputs.forEach((input) => {
+        input.value = ''
+      })
+    }
+    
+    // Clear any stored registration data
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('registerEmail')
+      localStorage.removeItem('registerEmail')
+    }
+  }, [reset])
 
   const password = watch('password')
 
   const onSubmit = async (data) => {
     setLoading(true)
-    const selectedLanguage = data.language || getSavedLanguage()
+    const selectedLanguage = getSavedLanguage()
     saveLanguage(selectedLanguage)
 
     const result = await registerUser({
@@ -46,10 +65,19 @@ const Register = () => {
     })
     
     if (result.success) {
+      reset({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: '',
+        role: ''
+      })
+      setShowPassword(false)
       const redirectPath = result.user?.role === 'admin' ? '/admin/dashboard' : 
                           result.user?.role === 'landlord' ? '/landlord/dashboard' : 
                           '/tenant/dashboard'
-      navigate(redirectPath)
+      navigate(redirectPath, { replace: true })
     }
     setLoading(false)
   }
@@ -73,7 +101,7 @@ const Register = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-soft p-8">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form ref={formRef} className="space-y-6" onSubmit={handleSubmit(onSubmit)} autoComplete="off" noValidate>
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                 Full Name
@@ -91,6 +119,7 @@ const Register = () => {
                     }
                   })}
                   type="text"
+                  autoComplete="off"
                   className="input-field pl-10"
                   placeholder="Enter your full name"
                 />
@@ -117,6 +146,7 @@ const Register = () => {
                     }
                   })}
                   type="email"
+                  autoComplete="off"
                   className="input-field pl-10"
                   placeholder="Enter your email"
                 />
@@ -142,6 +172,7 @@ const Register = () => {
                     }
                   })}
                   type="tel"
+                  autoComplete="off"
                   className="input-field pl-10"
                   placeholder="Enter your phone number (optional)"
                 />
@@ -168,6 +199,10 @@ const Register = () => {
                     }
                   })}
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="input-field pl-10 pr-10"
                   placeholder="Create a password"
                 />
@@ -202,6 +237,10 @@ const Register = () => {
                     validate: value => value === password || 'Passwords do not match'
                   })}
                   type="password"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="input-field pl-10"
                   placeholder="Confirm your password"
                 />
@@ -209,24 +248,6 @@ const Register = () => {
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
-            </div>
-
-            <div>
-              <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-2">
-                Preferred Language
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Globe2 className="h-5 w-5 text-gray-400" />
-                </div>
-                <select
-                  {...register('language')}
-                  className="input-field pl-10"
-                >
-                  <option value="en">English</option>
-                  <option value="fr">French</option>
-                </select>
-              </div>
             </div>
 
             <div>

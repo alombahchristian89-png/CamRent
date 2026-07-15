@@ -1,32 +1,61 @@
-import { useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../../context/useAuth'
-import { Eye, EyeOff, Building, Mail, Lock } from 'lucide-react'
+import { Building, Mail, Lock } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import AuthLanguageSwitcher from '../../components/settings/AuthLanguageSwitcher'
 
 const Login = () => {
-  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const formRef = useRef(null)
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
-  } = useForm()
+  } = useForm({
+    defaultValues: {
+      email: '',
+      password: ''
+    }
+  })
+
+  useEffect(() => {
+    // Ensure auth fields are clean when this page mounts
+    reset({ email: '', password: '' })
+    
+    // Clear all input fields directly from the DOM
+    if (formRef.current) {
+      const inputs = formRef.current.querySelectorAll('input')
+      inputs.forEach((input) => {
+        input.value = ''
+      })
+    }
+    
+    // Clear browser autocomplete/password manager cache
+    if (typeof window !== 'undefined') {
+      // Clear any stored credentials
+      sessionStorage.removeItem('loginEmail')
+      localStorage.removeItem('loginEmail')
+      sessionStorage.removeItem('lastEmail')
+      localStorage.removeItem('lastEmail')
+    }
+  }, [reset])
 
   const onSubmit = async (data) => {
     setLoading(true)
     const result = await login(data.email, data.password)
     
     if (result.success) {
+      reset({ email: '', password: '' })
       const redirectPath = result.user?.role === 'admin' ? '/admin/dashboard' : 
                           result.user?.role === 'landlord' ? '/landlord/dashboard' : 
                           '/tenant/dashboard'
-      navigate(redirectPath)
+      navigate(redirectPath, { replace: true })
     }
     setLoading(false)
   }
@@ -50,7 +79,7 @@ const Login = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-soft p-8">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form ref={formRef} className="space-y-6" onSubmit={handleSubmit(onSubmit)} autoComplete="off" noValidate>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -68,6 +97,10 @@ const Login = () => {
                     }
                   })}
                   type="email"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="input-field pl-10"
                   placeholder="Enter your email"
                 />
@@ -93,21 +126,14 @@ const Login = () => {
                       message: 'Password must be at least 6 characters'
                     }
                   })}
-                  type={showPassword ? 'text' : 'password'}
-                  className="input-field pl-10 pr-10"
+                  type="password"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="input-field pl-10"
                   placeholder="Enter your password"
                 />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
               </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>

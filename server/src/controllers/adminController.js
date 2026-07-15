@@ -539,6 +539,16 @@ const verifyLandlord = async (req, res) => {
       });
     }
 
+    if (status === 'approved') {
+      const submittedDocs = Array.isArray(landlordRow.documents) ? landlordRow.documents : [];
+      if (submittedDocs.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot approve: this landlord has not submitted any verification documents.'
+        });
+      }
+    }
+
     const baseUpdatePayload = {
       verification_status: status,
       is_verified: status === 'approved',

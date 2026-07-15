@@ -5,9 +5,9 @@ const THEME_KEY = 'camrent-theme-mode'
 const LANGUAGE_KEY = 'camrent-language'
 
 export const getSavedThemeMode = () => {
-  if (typeof window === 'undefined') return 'system'
+  if (typeof window === 'undefined') return 'light'
   const savedTheme = window.localStorage.getItem(THEME_KEY)
-  return THEME_MODES.includes(savedTheme) ? savedTheme : 'system'
+  return THEME_MODES.includes(savedTheme) ? savedTheme : 'light'
 }
 
 export const getSavedLanguage = () => {
@@ -20,7 +20,7 @@ export const applyThemeMode = (themeMode) => {
   if (typeof window === 'undefined') return
 
   const root = window.document.documentElement
-  const normalizedTheme = THEME_MODES.includes(themeMode) ? themeMode : 'system'
+  const normalizedTheme = THEME_MODES.includes(themeMode) ? themeMode : 'light'
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   const activeTheme = normalizedTheme === 'system' ? (prefersDark ? 'dark' : 'light') : normalizedTheme
 

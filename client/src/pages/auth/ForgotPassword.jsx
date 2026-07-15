@@ -133,6 +133,10 @@ const ForgotPassword = () => {
                     }
                   })}
                   type="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="input-field pl-10"
                   placeholder="Enter your email"
                 />

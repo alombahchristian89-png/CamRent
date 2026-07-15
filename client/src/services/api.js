@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearSensitiveData } from '../utils/sessionCleanup'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -48,9 +49,7 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         // Refresh failed, logout user
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
+        await clearSensitiveData()
         window.location.href = '/login'
         return Promise.reject(refreshError)
       }

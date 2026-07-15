@@ -17,8 +17,8 @@ export const AdminPageShell = ({ eyebrow = 'Admin portal', title, description, a
   </div>
 )
 
-export const AdminSurface = ({ className, children }) => (
-  <div className={clsx('admin-surface', className)}>{children}</div>
+export const AdminSurface = ({ className, children, ...props }) => (
+  <div className={clsx('admin-surface', className)} {...props}>{children}</div>
 )
 
 export const AdminSectionCard = ({ title, description, action, className, children }) => (
@@ -36,8 +36,11 @@ export const AdminSectionCard = ({ title, description, action, className, childr
   </AdminSurface>
 )
 
-export const AdminStatCard = ({ icon: Icon, label, value, helper, tone = 'blue', trend }) => (
-  <AdminSurface className="p-4 sm:p-5">
+export const AdminStatCard = ({ icon: Icon, label, value, helper, tone = 'blue', trend, onClick }) => (
+  <AdminSurface
+    className={clsx('p-4 sm:p-5', onClick && 'cursor-pointer transition-all hover:shadow-md hover:scale-105')}
+    onClick={onClick}
+  >
     <div className="flex items-start justify-between gap-4">
       <div>
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">{label}</p>
