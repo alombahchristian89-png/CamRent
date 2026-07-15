@@ -35,31 +35,68 @@ export const AuthProvider = ({ children }) => {
 
   // Load user from localStorage on mount
   useEffect(() => {
+    let isMounted = true
+
     const loadUser = async () => {
       const token = localStorage.getItem('accessToken')
       const userData = localStorage.getItem('user')
-      
-      if (token && userData) {
+
+      if (!token) {
+        if (isMounted) {
+          setLoading(false)
+        }
+        return
+      }
+
+      const hydrateProfile = async ({ clearOnFailure }) => {
         try {
-          const parsedUser = JSON.parse(userData)
-          persistUserAndLanguage(parsedUser)
-          
-          // Verify token and hydrate latest profile (including language preference).
           const profileResponse = await authAPI.getProfile()
           const profileUser = profileResponse?.data?.data?.user
           if (profileUser) {
             persistUserAndLanguage(profileUser, getSavedLanguage())
           }
         } catch (error) {
-          // Token is invalid, clear storage
-          clearClientSessionData({ hardClear: true })
-          setUser(null)
+          const statusCode = error?.response?.status
+
+          // Only force logout on unauthorized responses.
+          if (statusCode === 401 || clearOnFailure) {
+            clearClientSessionData({ hardClear: true })
+            if (isMounted) {
+              setUser(null)
+            }
+          }
         }
       }
-      setLoading(false)
+
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData)
+          persistUserAndLanguage(parsedUser)
+
+          // Unblock UI immediately and refresh profile in the background.
+          if (isMounted) {
+            setLoading(false)
+          }
+
+          void hydrateProfile({ clearOnFailure: false })
+          return
+        } catch {
+          localStorage.removeItem('user')
+        }
+      }
+
+      await hydrateProfile({ clearOnFailure: true })
+
+      if (isMounted) {
+        setLoading(false)
+      }
     }
 
     loadUser()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const login = async (email, password) => {
