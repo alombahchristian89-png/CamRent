@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from 'react-query'
 import { motion } from 'framer-motion'
 import { useAuth } from '../context/useAuth'
 import { formatDateLabel, getInitials } from './admin/adminUtils'
-import { supabase } from '../services/supabaseClient'
 import { notificationAPI } from '../services/api'
 import { applyThemeMode, getSavedThemeMode } from '../utils/preferences'
 import { clearSensitiveData } from '../utils/sessionCleanup'
@@ -188,130 +187,145 @@ const Layout = () => {
 
   useEffect(() => {
     const userId = user?._id || user?.id
-    if (!userId || !supabase) return undefined
+    if (!userId) return undefined
+
+    let isActive = true
+    let supabaseClient = null
 
     const channels = []
 
-    const userNotificationChannel = supabase
-      .channel(`user-notifications-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`
-        },
-        (payload) => {
-          const notification = payload?.new || {}
-          playNotificationSound()
-          toast.success(notification.message || notification.title || 'You have a new notification')
-          queryClient.invalidateQueries('tenantNotifications')
-          queryClient.invalidateQueries('landlordNotifications')
-          queryClient.invalidateQueries('userNotifications')
-        }
-      )
-      .subscribe()
+    const subscribeRealtime = async () => {
+      const module = await import('../services/supabaseClient')
+      if (!isActive || !module?.supabase) return
 
-    channels.push(userNotificationChannel)
+      supabaseClient = module.supabase
 
-    if (isLandlord) {
-      const landlordInquiryChannel = supabase
-        .channel(`landlord-inquiries-${userId}`)
+      const userNotificationChannel = supabaseClient
+        .channel(`user-notifications-${userId}`)
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'inquiries',
-            filter: `landlord_id=eq.${userId}`
+            table: 'notifications',
+            filter: `user_id=eq.${userId}`
           },
-          () => {
+          (payload) => {
+            const notification = payload?.new || {}
             playNotificationSound()
-            toast.success('New tenant inquiry received')
-            queryClient.invalidateQueries('landlordInquiries')
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'inquiries',
-            filter: `landlord_id=eq.${userId}`
-          },
-          () => {
-            queryClient.invalidateQueries('landlordInquiries')
+            toast.success(notification.message || notification.title || 'You have a new notification')
+            queryClient.invalidateQueries('tenantNotifications')
+            queryClient.invalidateQueries('landlordNotifications')
+            queryClient.invalidateQueries('userNotifications')
           }
         )
         .subscribe()
 
-      channels.push(landlordInquiryChannel)
-    }
+      channels.push(userNotificationChannel)
 
-    if (isTenant) {
-      const tenantPropertyChannel = supabase
-        .channel(`tenant-properties-${userId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'properties'
-          },
-          (payload) => {
-            const newProperty = payload?.new || {}
-            if (newProperty.is_active === false || newProperty.is_approved === false) {
-              return
-            }
-
-            playNotificationSound()
-            toast.success('New property added. Check latest listings!')
-            queryClient.invalidateQueries('featuredProperties')
-            queryClient.invalidateQueries('properties')
-          }
-        )
-        .subscribe()
-
-      const tenantInquiryChannel = supabase
-        .channel(`tenant-inquiries-${userId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'inquiries',
-            filter: `tenant_id=eq.${userId}`
-          },
-          (payload) => {
-            queryClient.invalidateQueries('tenantInquiries')
-            queryClient.invalidateQueries('tenantStats')
-
-            const previousMessages = getConversationMessages(payload?.old?.landlord_response)
-            const nextMessages = getConversationMessages(payload?.new?.landlord_response)
-            const previousLastMessage = previousMessages[previousMessages.length - 1]
-            const nextLastMessage = nextMessages[nextMessages.length - 1]
-
-            const landlordSentNewMessage =
-              nextMessages.length > previousMessages.length
-              && nextLastMessage?.senderRole === 'landlord'
-              && nextLastMessage?.createdAt !== previousLastMessage?.createdAt
-
-            if (landlordSentNewMessage) {
+      if (isLandlord) {
+        const landlordInquiryChannel = supabaseClient
+          .channel(`landlord-inquiries-${userId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'inquiries',
+              filter: `landlord_id=eq.${userId}`
+            },
+            () => {
               playNotificationSound()
-              toast.success('New reply from landlord')
+              toast.success('New tenant inquiry received')
+              queryClient.invalidateQueries('landlordInquiries')
             }
-          }
-        )
-        .subscribe()
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'inquiries',
+              filter: `landlord_id=eq.${userId}`
+            },
+            () => {
+              queryClient.invalidateQueries('landlordInquiries')
+            }
+          )
+          .subscribe()
 
-      channels.push(tenantPropertyChannel)
-      channels.push(tenantInquiryChannel)
+        channels.push(landlordInquiryChannel)
+      }
+
+      if (isTenant) {
+        const tenantPropertyChannel = supabaseClient
+          .channel(`tenant-properties-${userId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'properties'
+            },
+            (payload) => {
+              const newProperty = payload?.new || {}
+              if (newProperty.is_active === false || newProperty.is_approved === false) {
+                return
+              }
+
+              playNotificationSound()
+              toast.success('New property added. Check latest listings!')
+              queryClient.invalidateQueries('featuredProperties')
+              queryClient.invalidateQueries('properties')
+            }
+          )
+          .subscribe()
+
+        const tenantInquiryChannel = supabaseClient
+          .channel(`tenant-inquiries-${userId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'inquiries',
+              filter: `tenant_id=eq.${userId}`
+            },
+            (payload) => {
+              queryClient.invalidateQueries('tenantInquiries')
+              queryClient.invalidateQueries('tenantStats')
+
+              const previousMessages = getConversationMessages(payload?.old?.landlord_response)
+              const nextMessages = getConversationMessages(payload?.new?.landlord_response)
+              const previousLastMessage = previousMessages[previousMessages.length - 1]
+              const nextLastMessage = nextMessages[nextMessages.length - 1]
+
+              const landlordSentNewMessage =
+                nextMessages.length > previousMessages.length
+                && nextLastMessage?.senderRole === 'landlord'
+                && nextLastMessage?.createdAt !== previousLastMessage?.createdAt
+
+              if (landlordSentNewMessage) {
+                playNotificationSound()
+                toast.success('New reply from landlord')
+              }
+            }
+          )
+          .subscribe()
+
+        channels.push(tenantPropertyChannel)
+        channels.push(tenantInquiryChannel)
+      }
     }
+
+    void subscribeRealtime()
 
     return () => {
+      isActive = false
+      if (!supabaseClient) return
+
       channels.forEach((channel) => {
-        supabase.removeChannel(channel)
+        supabaseClient.removeChannel(channel)
       })
     }
   }, [getConversationMessages, isLandlord, isTenant, queryClient, user?._id, user?.id])

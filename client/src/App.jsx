@@ -5,46 +5,64 @@ import LoadingSpinner from './components/LoadingSpinner'
 import { getSavedLanguage } from './utils/preferences'
 import { translateDocumentText } from './utils/i18n'
 
+const lazyWithPreload = (factory) => {
+  const Component = lazy(factory)
+  Component.preload = factory
+  return Component
+}
+
+const runWhenIdle = (callback, timeout = 1200) => {
+  if (typeof window === 'undefined') return () => {}
+
+  if (typeof window.requestIdleCallback === 'function') {
+    const idleId = window.requestIdleCallback(callback, { timeout })
+    return () => window.cancelIdleCallback(idleId)
+  }
+
+  const timeoutId = window.setTimeout(callback, 250)
+  return () => window.clearTimeout(timeoutId)
+}
+
 // Auth Pages
-const Layout = lazy(() => import('./components/Layout'))
-const Login = lazy(() => import('./pages/auth/Login'))
-const Register = lazy(() => import('./pages/auth/Register'))
-const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
-const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
+const Layout = lazyWithPreload(() => import('./components/Layout'))
+const Login = lazyWithPreload(() => import('./pages/auth/Login'))
+const Register = lazyWithPreload(() => import('./pages/auth/Register'))
+const ForgotPassword = lazyWithPreload(() => import('./pages/auth/ForgotPassword'))
+const ResetPassword = lazyWithPreload(() => import('./pages/auth/ResetPassword'))
 
 // Tenant Pages
-const Home = lazy(() => import('./pages/tenant/Home'))
-const PropertyList = lazy(() => import('./pages/tenant/PropertyList'))
-const PropertyDetail = lazy(() => import('./pages/tenant/PropertyDetail'))
-const TenantDashboard = lazy(() => import('./pages/tenant/Dashboard'))
-const Favorites = lazy(() => import('./pages/tenant/Favorites'))
-const Inquiries = lazy(() => import('./pages/tenant/Inquiries'))
-const TenantNotifications = lazy(() => import('./pages/tenant/Notifications'))
-const TenantRequests = lazy(() => import('./pages/tenant/Requests'))
-const TenantShell = lazy(() => import('./components/tenant/TenantShell'))
+const Home = lazyWithPreload(() => import('./pages/tenant/Home'))
+const PropertyList = lazyWithPreload(() => import('./pages/tenant/PropertyList'))
+const PropertyDetail = lazyWithPreload(() => import('./pages/tenant/PropertyDetail'))
+const TenantDashboard = lazyWithPreload(() => import('./pages/tenant/Dashboard'))
+const Favorites = lazyWithPreload(() => import('./pages/tenant/Favorites'))
+const Inquiries = lazyWithPreload(() => import('./pages/tenant/Inquiries'))
+const TenantNotifications = lazyWithPreload(() => import('./pages/tenant/Notifications'))
+const TenantRequests = lazyWithPreload(() => import('./pages/tenant/Requests'))
+const TenantShell = lazyWithPreload(() => import('./components/tenant/TenantShell'))
 
 // Landlord Pages
-const LandlordDashboard = lazy(() => import('./pages/landlord/Dashboard'))
-const MyProperties = lazy(() => import('./pages/landlord/MyProperties'))
-const AddProperty = lazy(() => import('./pages/landlord/AddProperty'))
-const EditProperty = lazy(() => import('./pages/landlord/EditProperty'))
-const Verification = lazy(() => import('./pages/landlord/Verification'))
-const LandlordInquiries = lazy(() => import('./pages/landlord/Inquiries'))
-const LandlordNotifications = lazy(() => import('./pages/landlord/Notifications'))
-const LandlordRequests = lazy(() => import('./pages/landlord/Requests'))
+const LandlordDashboard = lazyWithPreload(() => import('./pages/landlord/Dashboard'))
+const MyProperties = lazyWithPreload(() => import('./pages/landlord/MyProperties'))
+const AddProperty = lazyWithPreload(() => import('./pages/landlord/AddProperty'))
+const EditProperty = lazyWithPreload(() => import('./pages/landlord/EditProperty'))
+const Verification = lazyWithPreload(() => import('./pages/landlord/Verification'))
+const LandlordInquiries = lazyWithPreload(() => import('./pages/landlord/Inquiries'))
+const LandlordNotifications = lazyWithPreload(() => import('./pages/landlord/Notifications'))
+const LandlordRequests = lazyWithPreload(() => import('./pages/landlord/Requests'))
 
 // Admin Pages
-const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
-const AdminUsers = lazy(() => import('./pages/admin/Users'))
-const AdminLandlords = lazy(() => import('./pages/admin/Landlords'))
-const AdminProperties = lazy(() => import('./pages/admin/Properties'))
-const AdminInquiries = lazy(() => import('./pages/admin/Inquiries'))
-const AdminNotifications = lazy(() => import('./pages/admin/Notifications'))
-const AdminAuditLogs = lazy(() => import('./pages/admin/AuditLogs'))
-const AdminSettings = lazy(() => import('./pages/admin/Settings'))
-const AdminRevenue = lazy(() => import('./pages/admin/Revenue'))
-const AdminViewings = lazy(() => import('./pages/admin/Viewings'))
-const SettingsPage = lazy(() => import('./pages/shared/Settings'))
+const AdminDashboard = lazyWithPreload(() => import('./pages/admin/Dashboard'))
+const AdminUsers = lazyWithPreload(() => import('./pages/admin/Users'))
+const AdminLandlords = lazyWithPreload(() => import('./pages/admin/Landlords'))
+const AdminProperties = lazyWithPreload(() => import('./pages/admin/Properties'))
+const AdminInquiries = lazyWithPreload(() => import('./pages/admin/Inquiries'))
+const AdminNotifications = lazyWithPreload(() => import('./pages/admin/Notifications'))
+const AdminAuditLogs = lazyWithPreload(() => import('./pages/admin/AuditLogs'))
+const AdminSettings = lazyWithPreload(() => import('./pages/admin/Settings'))
+const AdminRevenue = lazyWithPreload(() => import('./pages/admin/Revenue'))
+const AdminViewings = lazyWithPreload(() => import('./pages/admin/Viewings'))
+const SettingsPage = lazyWithPreload(() => import('./pages/shared/Settings'))
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -89,7 +107,49 @@ const PublicRoute = ({ children, allowAuthenticated = false }) => {
 }
 
 function App() {
+  const { user } = useAuth()
   const [language, setLanguage] = useState('en')
+
+  useEffect(() => {
+    const cancelIdleWork = runWhenIdle(() => {
+      Layout.preload?.()
+      Home.preload?.()
+      PropertyList.preload?.()
+
+      if (!user) {
+        Login.preload?.()
+        Register.preload?.()
+        ForgotPassword.preload?.()
+        return
+      }
+
+      if (user.role === 'tenant') {
+        TenantShell.preload?.()
+        TenantDashboard.preload?.()
+        Favorites.preload?.()
+        Inquiries.preload?.()
+        TenantNotifications.preload?.()
+        return
+      }
+
+      if (user.role === 'landlord') {
+        LandlordDashboard.preload?.()
+        MyProperties.preload?.()
+        LandlordInquiries.preload?.()
+        LandlordNotifications.preload?.()
+        return
+      }
+
+      if (user.role === 'admin') {
+        AdminDashboard.preload?.()
+        AdminUsers.preload?.()
+        AdminProperties.preload?.()
+        AdminInquiries.preload?.()
+      }
+    })
+
+    return cancelIdleWork
+  }, [user?.role])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
