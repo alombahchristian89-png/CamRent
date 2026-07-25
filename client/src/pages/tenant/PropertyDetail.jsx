@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import { 
@@ -34,6 +34,8 @@ const PropertyDetail = () => {
   const [bookingGuests, setBookingGuests] = useState('')
   const [checkInDate, setCheckInDate] = useState('')
   const [checkOutDate, setCheckOutDate] = useState('')
+  const [checkInTime, setCheckInTime] = useState('')
+  const [checkOutTime, setCheckOutTime] = useState('')
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -50,6 +52,13 @@ const PropertyDetail = () => {
       select: (response) => response.data.data.property
     }
   )
+
+  useEffect(() => {
+    if (propertyData?.hospitalityInfo) {
+      setCheckInTime(propertyData.hospitalityInfo.checkInTime || '')
+      setCheckOutTime(propertyData.hospitalityInfo.checkOutTime || '')
+    }
+  }, [propertyData])
 
   // Check if property is favorited
   const { data: isFavoritedData } = useQuery(
@@ -110,6 +119,8 @@ const PropertyDetail = () => {
         setBookingGuests('')
         setCheckInDate('')
         setCheckOutDate('')
+        setCheckInTime('')
+        setCheckOutTime('')
         queryClient.invalidateQueries('tenantRequests')
         queryClient.invalidateQueries('userNotifications')
       },
@@ -171,6 +182,8 @@ const PropertyDetail = () => {
       guests: bookingGuests ? Number(bookingGuests) : undefined,
       checkInDate,
       checkOutDate,
+      checkInTime,
+      checkOutTime,
       city: property?.location?.city,
       message: bookingMessage.trim()
     })
@@ -572,7 +585,7 @@ const PropertyDetail = () => {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Check-in</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Check-in date</label>
                 <input
                   type="date"
                   value={checkInDate}
@@ -581,11 +594,29 @@ const PropertyDetail = () => {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Check-out</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Check-out date</label>
                 <input
                   type="date"
                   value={checkOutDate}
                   onChange={(event) => setCheckOutDate(event.target.value)}
+                  className="input-field w-full"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Check-in time</label>
+                <input
+                  type="time"
+                  value={checkInTime}
+                  onChange={(event) => setCheckInTime(event.target.value)}
+                  className="input-field w-full"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Check-out time</label>
+                <input
+                  type="time"
+                  value={checkOutTime}
+                  onChange={(event) => setCheckOutTime(event.target.value)}
                   className="input-field w-full"
                 />
               </div>

@@ -192,6 +192,8 @@ const sendTenantPropertyRequest = async (req, res) => {
       roomType,
       checkInDate,
       checkOutDate,
+      checkInTime,
+      checkOutTime,
       guests,
       propertyType,
       city,
@@ -283,11 +285,21 @@ const sendTenantPropertyRequest = async (req, res) => {
       ? 'tenant_accommodation_booking_request'
       : 'tenant_accommodation_search_request';
 
+    const formatStayWindow = (startDate, startTime, endDate, endTime) => {
+      const start = startDate ? `${startDate}${startTime ? ` ${startTime}` : ''}` : null;
+      const end = endDate ? `${endDate}${endTime ? ` ${endTime}` : ''}` : null;
+
+      if (start && end) return ` from ${start} to ${end}`;
+      if (start) return ` for ${start}`;
+      if (end) return ` until ${end}`;
+      return '';
+    };
+
     const notificationRows = landlords.map((landlord) => ({
       user_id: landlord.id,
       title: propertyId ? `Booking request: ${targetProperty?.title || normalizedPropertyType}` : `Accommodation request: ${normalizedPropertyType}`,
       message: propertyId
-        ? `A guest requested ${targetProperty?.title || 'your accommodation'}${normalizedCity ? ` in ${normalizedCity}` : ''}${checkInDate && checkOutDate ? ` from ${checkInDate} to ${checkOutDate}` : ''}.`
+        ? `A guest requested ${targetProperty?.title || 'your accommodation'}${normalizedCity ? ` in ${normalizedCity}` : ''}${formatStayWindow(checkInDate, checkInTime, checkOutDate, checkOutTime)}.`
         : `A guest is looking for ${normalizedPropertyType}${normalizedCity ? ` in ${normalizedCity}` : ''}. Respond to connect with them.`,
       type: 'admin_info',
       metadata: {
@@ -301,6 +313,8 @@ const sendTenantPropertyRequest = async (req, res) => {
         city: normalizedCity,
         checkInDate: checkInDate || null,
         checkOutDate: checkOutDate || null,
+        checkInTime: checkInTime || null,
+        checkOutTime: checkOutTime || null,
         guests: guests ? Number(guests) : null,
         minBudget: minBudget ? Number(minBudget) : null,
         maxBudget: maxBudget ? Number(maxBudget) : null,

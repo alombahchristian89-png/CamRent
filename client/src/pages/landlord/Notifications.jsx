@@ -70,6 +70,15 @@ const LandlordNotifications = () => {
   const notifications = data?.notifications || []
   const unreadCount = data?.unreadCount || 0
   const pagination = data?.pagination
+  const formatStayWindow = (checkInDate, checkInTime, checkOutDate, checkOutTime) => {
+    const start = checkInDate ? `${checkInDate}${checkInTime ? ` ${checkInTime}` : ''}` : null
+    const end = checkOutDate ? `${checkOutDate}${checkOutTime ? ` ${checkOutTime}` : ''}` : null
+
+    if (start && end) return `${start} to ${end}`
+    if (start) return start
+    if (end) return end
+    return null
+  }
 
   if (isLoading) {
     return (
@@ -134,7 +143,7 @@ const LandlordNotifications = () => {
                           <p><span className="font-semibold">Accommodation type:</span> {metadata.propertyType || metadata.accommodationType || 'Any'}</p>
                           <p><span className="font-semibold">Room type:</span> {metadata.roomType || 'Any'}</p>
                           {metadata.city && <p><span className="font-semibold">City:</span> {metadata.city}</p>}
-                          {(metadata.checkInDate || metadata.checkOutDate) && <p><span className="font-semibold">Dates:</span> {metadata.checkInDate || '--'} to {metadata.checkOutDate || '--'}</p>}
+                          {formatStayWindow(metadata.checkInDate, metadata.checkInTime, metadata.checkOutDate, metadata.checkOutTime) && <p><span className="font-semibold">Dates:</span> {formatStayWindow(metadata.checkInDate, metadata.checkInTime, metadata.checkOutDate, metadata.checkOutTime)}</p>}
                           {metadata.guests != null && <p><span className="font-semibold">Guests:</span> {metadata.guests}</p>}
                           {metadata.bedrooms != null && <p><span className="font-semibold">Bedrooms:</span> {metadata.bedrooms}</p>}
                           {metadata.minBudget != null && <p><span className="font-semibold">Min budget:</span> {metadata.minBudget}</p>}

@@ -205,6 +205,36 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
     }
   }, [selectedRentalType, setValue])
 
+  // Auto-calc weekly and daily prices from monthly price when user provides monthly
+  const watchedPricingArray = watch(['pricing.monthly', 'pricing.weekly', 'pricing.daily']) || []
+  const watchedMonthly = watchedPricingArray[0]
+  const watchedWeekly = watchedPricingArray[1]
+  const watchedDaily = watchedPricingArray[2]
+
+  useEffect(() => {
+    try {
+      const monthly = Number(watchedMonthly || 0)
+      if (!Number.isFinite(monthly) || monthly <= 0) return
+
+      const weeklyCalc = Math.round(monthly / 4)
+      const dailyCalc = Math.round(monthly / 30)
+
+      const currentWeekly = Number(watchedWeekly || 0)
+      const currentDaily = Number(watchedDaily || 0)
+
+      // Only auto-fill if the fields are empty or zero to avoid overwriting user edits
+      if (!currentWeekly) {
+        setValue('pricing.weekly', String(weeklyCalc))
+      }
+      if (!currentDaily) {
+        setValue('pricing.daily', String(dailyCalc))
+      }
+    } catch (err) {
+      // swallow errors to avoid breaking the whole form UI
+      console.warn('Auto-pricing calc failed', err)
+    }
+  }, [watchedMonthly, watchedWeekly, watchedDaily, setValue])
+
   useEffect(() => {
     setValue('propertyCategory', selectedCategory)
   }, [selectedCategory, setValue])

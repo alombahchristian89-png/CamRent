@@ -17,6 +17,15 @@ const TenantRequests = () => {
 
   const notifications = data?.notifications || []
   const pagination = data?.pagination
+  const formatStayWindow = (checkInDate, checkInTime, checkOutDate, checkOutTime) => {
+    const start = checkInDate ? `${checkInDate}${checkInTime ? ` ${checkInTime}` : ''}` : null
+    const end = checkOutDate ? `${checkOutDate}${checkOutTime ? ` ${checkOutTime}` : ''}` : null
+
+    if (start && end) return `${start} to ${end}`
+    if (start) return start
+    if (end) return end
+    return null
+  }
   const requestResponses = notifications.filter((notification) => {
     const metadata = notification.metadata || {}
     return metadata.event === 'tenant_accommodation_request_response' || metadata.event === 'tenant_accommodation_booking_status'
@@ -73,8 +82,8 @@ const TenantRequests = () => {
                         <p><span className="font-semibold">Accommodation:</span> {metadata.propertyType || metadata.accommodationType || 'Any'}</p>
                         <p><span className="font-semibold">Room type:</span> {metadata.roomType || 'Any'}</p>
                         <p><span className="font-semibold">City:</span> {metadata.city || 'Any'}</p>
-                        {(metadata.checkInDate || metadata.checkOutDate) && (
-                          <p><span className="font-semibold">Dates:</span> {metadata.checkInDate || '--'} to {metadata.checkOutDate || '--'}</p>
+                        {formatStayWindow(metadata.checkInDate, metadata.checkInTime, metadata.checkOutDate, metadata.checkOutTime) && (
+                          <p><span className="font-semibold">Dates:</span> {formatStayWindow(metadata.checkInDate, metadata.checkInTime, metadata.checkOutDate, metadata.checkOutTime)}</p>
                         )}
                         {metadata.bookingStatus && <p><span className="font-semibold">Status:</span> {metadata.bookingStatus}</p>}
                         {metadata.minBudget != null && <p><span className="font-semibold">Min budget:</span> {metadata.minBudget}</p>}
