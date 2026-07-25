@@ -9,7 +9,8 @@ import {
   MapPin,
   Coins,
   Calendar,
-  User
+  User,
+  X
 } from 'lucide-react'
 import { adminAPI, propertyAPI } from '../../services/api'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -22,8 +23,9 @@ const PropertiesManagement = () => {
   const [language, setLanguage] = useState('en')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
+  const [selectedPropertyDetails, setSelectedPropertyDetails] = useState(null)
   const t = (key, fallback) => translate(language, key, fallback)
-  const locale = language === 'fr' ? 'fr-FR' : 'en-US'
+  const locale = language === 'fr' ? 'fr-FR' : 'en-FR'
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -262,7 +264,7 @@ const PropertiesManagement = () => {
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <button
-                        onClick={() => window.open(`/properties/${property._id}`, '_blank')}
+                        onClick={() => setSelectedPropertyDetails(property)}
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800"
                         title={t('adminPropertiesViewProperty', 'View Property')}
                       >
@@ -387,7 +389,7 @@ const PropertiesManagement = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
                           <button
-                            onClick={() => window.open(`/properties/${property._id}`, '_blank')}
+                            onClick={() => setSelectedPropertyDetails(property)}
                             className="text-gray-400 hover:text-gray-600 p-1 rounded"
                             title={t('adminPropertiesViewProperty', 'View Property')}
                           >
@@ -561,6 +563,170 @@ const PropertiesManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Property Detail Modal */}
+      {selectedPropertyDetails && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedPropertyDetails(null)} />
+          <div className="relative mx-auto my-12 max-w-5xl px-4">
+            <div className="overflow-hidden rounded-3xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-gray-200 p-5">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">{selectedPropertyDetails.title}</h2>
+                  <p className="mt-1 text-sm text-gray-500">{selectedPropertyDetails.location?.city || t('adminPropertiesNoLocation', 'No location')} • {selectedPropertyDetails.location?.address || ''}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPropertyDetails(null)}
+                  className="rounded-full border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] p-5">
+                <div className="space-y-6">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {selectedPropertyDetails.images?.length > 0 ? selectedPropertyDetails.images.slice(0, 4).map((image, index) => (
+                      <div key={index} className="h-40 overflow-hidden rounded-2xl bg-gray-100">
+                        <img src={image.url || image} alt={`${selectedPropertyDetails.title} ${index + 1}`} className="h-full w-full object-cover" />
+                      </div>
+                    )) : (
+                      <div className="col-span-2 flex h-40 items-center justify-center rounded-2xl bg-gray-100 text-gray-500">
+                        {t('adminPropertiesNoImages', 'No images available')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyPrice', 'Price')}</p>
+                      <p className="mt-2 text-xl font-semibold text-gray-900">{formatXaf(selectedPropertyDetails.price)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyStatus', 'Status')}</p>
+                      <p className="mt-2 text-sm font-semibold text-gray-900">{getStatusText(selectedPropertyDetails)}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyDescription', 'Description')}</h3>
+                    <p className="mt-3 text-sm leading-6 text-gray-700">{selectedPropertyDetails.description || t('adminPropertiesNoDescription', 'No description provided.')}</p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyBedrooms', 'Bedrooms')}</p>
+                      <p className="mt-2 text-lg font-semibold text-gray-900">{selectedPropertyDetails.bedrooms || 0}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyBathrooms', 'Bathrooms')}</p>
+                      <p className="mt-2 text-lg font-semibold text-gray-900">{selectedPropertyDetails.bathrooms || 0}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyArea', 'Area')}</p>
+                      <p className="mt-2 text-lg font-semibold text-gray-900">{selectedPropertyDetails.area || 0} m²</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-200 p-4 bg-gray-50">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyType', 'Type')}</p>
+                      <p className="mt-2 text-lg font-semibold text-gray-900">{selectedPropertyDetails.type || t('adminPropertiesNA', 'N/A')}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyDetails', 'Property Details')}</h3>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                        <p className="text-xs text-gray-500">{t('adminPropertyCategory', 'Category')}</p>
+                        <p className="mt-2 text-sm font-semibold text-gray-900 capitalize">{selectedPropertyDetails.propertyCategory || t('adminPropertiesNA', 'N/A')}</p>
+                      </div>
+                      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                        <p className="text-xs text-gray-500">{t('adminPropertyRentalType', 'Rental type')}</p>
+                        <p className="mt-2 text-sm font-semibold text-gray-900 capitalize">{selectedPropertyDetails.rentalType || t('adminPropertiesNA', 'N/A')}</p>
+                      </div>
+                      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                        <p className="text-xs text-gray-500">{t('adminPropertyListingStatus', 'Listing status')}</p>
+                        <p className="mt-2 text-sm font-semibold text-gray-900 capitalize">{selectedPropertyDetails.listingStatus || t('adminPropertiesNA', 'N/A')}</p>
+                      </div>
+                      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                        <p className="text-xs text-gray-500">{t('adminPropertyApproval', 'Approval')}</p>
+                        <p className="mt-2 text-sm font-semibold text-gray-900">{selectedPropertyDetails.isApproved ? t('adminPropertiesApproved', 'Approved') : t('adminPropertiesPending', 'Pending')}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyLandlord', 'Landlord')}</h3>
+                    <div className="mt-4 space-y-2">
+                      <p className="text-sm font-medium text-gray-900">{selectedPropertyDetails.landlord?.name || t('adminCommonUnknown', 'Unknown')}</p>
+                      <p className="text-sm text-gray-500">{selectedPropertyDetails.landlord?.email || t('adminPropertiesNoEmail', 'No email')}</p>
+                      <p className="text-sm text-gray-500">{selectedPropertyDetails.landlord?.phone || t('adminPropertiesNoPhone', 'No phone')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyLocation', 'Location')}</h3>
+                    <div className="mt-4 space-y-2 text-sm text-gray-700">
+                      <p><span className="font-semibold text-gray-900">{t('adminPropertyCity', 'City')}:</span> {selectedPropertyDetails.location?.city || t('adminPropertiesNoLocation', 'No city')}</p>
+                      <p><span className="font-semibold text-gray-900">{t('adminPropertyAddress', 'Address')}:</span> {selectedPropertyDetails.location?.address || t('adminPropertyNoAddress', 'No address')}</p>
+                      <p><span className="font-semibold text-gray-900">{t('adminPropertyNeighborhood', 'Neighborhood')}:</span> {selectedPropertyDetails.location?.neighborhood || t('adminPropertyNA', 'N/A')}</p>
+                      <p><span className="font-semibold text-gray-900">{t('adminPropertyCountry', 'Country')}:</span> {selectedPropertyDetails.location?.country || t('adminPropertyNA', 'N/A')}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyAmenities', 'Amenities')}</h3>
+                    <p className="mt-4 text-sm text-gray-700">
+                      {Array.isArray(selectedPropertyDetails.amenities) && selectedPropertyDetails.amenities.length > 0
+                        ? selectedPropertyDetails.amenities.join(', ')
+                        : t('adminPropertyNoAmenities', 'No amenities listed')}
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyMedia', 'Media')}</h3>
+                    <div className="mt-4 space-y-2 text-sm text-gray-700">
+                      <p>{t('adminPropertyImagesCount', '{count} images').replace('{count}', String(selectedPropertyDetails.images?.length || 0))}</p>
+                      <p>{t('adminPropertyVideosCount', '{count} videos').replace('{count}', String(selectedPropertyDetails.videos?.length || 0))}</p>
+                    </div>
+                  </div>
+
+                  {selectedPropertyDetails.propertyCategory === 'hospitality' && (
+                    <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyHospitality', 'Hospitality info')}</h3>
+                      <div className="mt-4 space-y-2 text-sm text-gray-700">
+                        <p><span className="font-semibold text-gray-900">{t('adminPropertyCheckIn', 'Check-in')}:</span> {selectedPropertyDetails.hospitalityInfo?.checkInTime || t('adminPropertiesNA', 'N/A')}</p>
+                        <p><span className="font-semibold text-gray-900">{t('adminPropertyCheckOut', 'Check-out')}:</span> {selectedPropertyDetails.hospitalityInfo?.checkOutTime || t('adminPropertiesNA', 'N/A')}</p>
+                        <p><span className="font-semibold text-gray-900">{t('adminPropertyRoomsAvailable', 'Rooms available')}:</span> {selectedPropertyDetails.hospitalityInfo?.roomsAvailable || 0}</p>
+                        <p><span className="font-semibold text-gray-900">{t('adminPropertyMaxOccupancy', 'Max occupancy')}:</span> {selectedPropertyDetails.hospitalityInfo?.maxOccupancy || 0}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPropertyDetails.propertyCategory === 'residential' && (
+                    <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('adminPropertyResidential', 'Residential info')}</h3>
+                      <div className="mt-4 space-y-2 text-sm text-gray-700">
+                        <p><span className="font-semibold text-gray-900">{t('adminPropertyLeaseDuration', 'Lease duration')}:</span> {selectedPropertyDetails.residentialInfo?.leaseDurationMonths || 0} months</p>
+                        <p><span className="font-semibold text-gray-900">{t('adminPropertySecurityDeposit', 'Security deposit')}:</span> {formatXaf(selectedPropertyDetails.residentialInfo?.securityDeposit || 0)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-3xl border border-gray-200 p-5 bg-white">
+                    <p className="text-sm font-semibold text-gray-500">{t('adminPropertiesCreated', 'Created')}</p>
+                    <p className="mt-2 text-sm text-gray-900">{formatDate(selectedPropertyDetails.createdAt)}</p>
+                    <p className="mt-1 text-sm text-gray-500">{t('adminPropertiesUpdated', 'Updated')} {formatDate(selectedPropertyDetails.updatedAt)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

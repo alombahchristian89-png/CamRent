@@ -21,6 +21,19 @@ const isMissingTableError = (error, tableName) => {
   );
 };
 
+const isPermissionOrPolicyError = (error) => {
+  const code = String(error?.code || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  return (
+    code === '42501'
+    || message.includes('row-level security')
+    || message.includes('violates row-level security')
+    || message.includes('permission denied')
+    || message.includes('policy')
+  );
+};
+
 const toSafeObject = (value) => {
   if (!value || typeof value !== 'object') return {};
   return value;
@@ -136,7 +149,7 @@ const logActivity = async ({
   const { error } = await supabase.from('activity_logs').insert(payload);
   if (!error) return true;
 
-  if (isMissingTableError(error, 'activity_logs')) {
+  if (isMissingTableError(error, 'activity_logs') || isPermissionOrPolicyError(error)) {
     try {
       await insertActivityLogRow({
         actorUserId,
@@ -146,27 +159,35 @@ const logActivity = async ({
         details: toSafeObject(details)
       });
       return true;
-    } catch {
-      const persisted = await insertIntoAuditLogsFallback({
-        actorUserId,
-        targetUserId,
-        actionType,
-        entityType,
-        details
-      });
-      if (persisted) return true;
+    } catch (fallbackError) {
+      try {
+        const persisted = await insertIntoAuditLogsFallback({
+          actorUserId,
+          targetUserId,
+          actionType,
+          entityType,
+          details
+        });
+        if (persisted) return true;
+      } catch {
+        // Ignore fallback failures and allow the main request to continue.
+      }
 
-      return insertIntoNotificationsFallback({
-        actorUserId,
-        targetUserId,
-        actionType,
-        entityType,
-        details
-      });
+      try {
+        return await insertIntoNotificationsFallback({
+          actorUserId,
+          targetUserId,
+          actionType,
+          entityType,
+          details
+        });
+      } catch {
+        return false;
+      }
     }
   }
 
-  throw error;
+  return false;
 };
 
 module.exports = {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from 'react-query'
 import { authAPI } from '../services/api'
 import toast from 'react-hot-toast'
@@ -17,7 +17,60 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const queryClient = useQueryClient()
 
+  const SESSION_TIMEOUT_MS = 10 * 60 * 1000
+  const SESSION_EXPIRY_KEY = 'camrent-session-expiry'
+  const sessionTimeoutId = useRef(null)
+
+  const getSessionExpiry = () => {
+    if (typeof window === 'undefined') return 0
+    const raw = window.localStorage.getItem(SESSION_EXPIRY_KEY)
+    return raw ? Number(raw) : 0
+  }
+
+  const setSessionExpiry = (timestamp) => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(SESSION_EXPIRY_KEY, String(timestamp))
+  }
+
+  const clearSessionExpiry = () => {
+    if (typeof window === 'undefined') return
+    window.localStorage.removeItem(SESSION_EXPIRY_KEY)
+  }
+
+  const clearLogoutTimer = () => {
+    if (sessionTimeoutId.current) {
+      window.clearTimeout(sessionTimeoutId.current)
+      sessionTimeoutId.current = null
+    }
+  }
+
+  const handleSessionTimeout = async () => {
+    toast('Session expired. Logging out.')
+    await logout()
+  }
+
+  const scheduleLogout = (expiresAt) => {
+    clearLogoutTimer()
+    const delay = Math.max(0, expiresAt - Date.now())
+    if (delay <= 0) {
+      void handleSessionTimeout()
+      return
+    }
+    sessionTimeoutId.current = window.setTimeout(() => {
+      void handleSessionTimeout()
+    }, delay)
+  }
+
+  const resetSessionTimeout = () => {
+    if (!user || typeof window === 'undefined') return
+    const expiresAt = Date.now() + SESSION_TIMEOUT_MS
+    setSessionExpiry(expiresAt)
+    scheduleLogout(expiresAt)
+  }
+
   const clearAuthSession = () => {
+    clearLogoutTimer()
+    clearSessionExpiry()
     setUser(null)
     queryClient.clear()
     localStorage.removeItem('user')
@@ -35,6 +88,61 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener('auth:logout', handleExternalLogout)
     }
   }, [queryClient])
+
+  useEffect(() => {
+    if (!user || typeof window === 'undefined') {
+      clearLogoutTimer()
+      return undefined
+    }
+
+    const storedExpiry = getSessionExpiry()
+    if (storedExpiry && storedExpiry <= Date.now()) {
+      void handleSessionTimeout()
+      return undefined
+    }
+
+    const expiresAt = storedExpiry || Date.now() + SESSION_TIMEOUT_MS
+    setSessionExpiry(expiresAt)
+    scheduleLogout(expiresAt)
+
+    const activityEvents = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'scroll'
+    ]
+
+    const handleActivity = () => {
+      resetSessionTimeout()
+    }
+
+    const handleStorage = (event) => {
+      if (event.key === SESSION_EXPIRY_KEY && event.newValue) {
+        const nextExpiry = Number(event.newValue)
+        if (!Number.isNaN(nextExpiry)) {
+          scheduleLogout(nextExpiry)
+        }
+      }
+
+      if (event.key === 'accessToken' && event.newValue === null) {
+        clearAuthSession()
+      }
+    }
+
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, handleActivity)
+    })
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      clearLogoutTimer()
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, handleActivity)
+      })
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [user])
 
   const persistUserAndLanguage = (userData, fallbackLanguage = getSavedLanguage()) => {
     const normalizedLanguage = normalizeLanguage(

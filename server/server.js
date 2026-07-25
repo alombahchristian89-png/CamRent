@@ -49,23 +49,24 @@ const configuredOrigins = (readEnv('FRONTEND_URL') || '')
   .map((origin) => origin.replace(/\/+$/, ''))
   .filter(Boolean);
 
-const corsOptions = configuredOrigins.length > 0
-  ? {
-      origin: (origin, callback) => {
-        const normalizedOrigin = String(origin || '').replace(/\/+$/, '');
+const defaultDevOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
+const allowedOrigins = new Set([...configuredOrigins, ...defaultDevOrigins]);
 
-        if (!origin || configuredOrigins.includes(normalizedOrigin)) {
-          return callback(null, true);
-        }
+const corsOptions = {
+  origin: (origin, callback) => {
+    const normalizedOrigin = String(origin || '').replace(/\/+$/, '');
 
-        console.warn(`[CORS] Blocked origin: ${origin}`);
-        return callback(null, false);
-      },
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      credentials: true
+    if (!origin || allowedOrigins.has(normalizedOrigin)) {
+      return callback(null, true);
     }
-  : {};
+
+    console.warn(`[CORS] Blocked origin: ${origin}`);
+    return callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true
+};
 
 // Rate limiting
 // Keep a generous global limiter for all API traffic.
@@ -95,6 +96,14 @@ const authLimiter = rateLimit({
 // Middleware
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  next();
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/api', globalLimiter);
