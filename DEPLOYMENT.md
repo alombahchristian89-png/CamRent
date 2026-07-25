@@ -23,9 +23,12 @@ Required Render environment variables:
 - `CLOUDINARY_API_SECRET`
 - `EMAIL_HOST`
 - `EMAIL_PORT`
+- `EMAIL_SECURE` (`true` for port 465, `false` for port 587)
 - `EMAIL_USER`
 - `EMAIL_PASS`
 - `EMAIL_FROM`
+- `EMAIL_FROM_NAME` and `EMAIL_FROM_ADDRESS` for a dedicated no-reply sender
+- `EMAIL_REPLY_TO` for user replies and support routing
 - `SUPABASE_DB_URL` (if DB scripts are used)
 
 After deploy, copy your Render backend URL, e.g.:

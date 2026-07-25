@@ -20,7 +20,16 @@ const Register = () => {
     watch,
     reset,
     formState: { errors },
-  } = useForm()
+  } = useForm({
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      role: ''
+    }
+  })
 
   useEffect(() => {
     reset({
@@ -120,6 +129,7 @@ const Register = () => {
                   })}
                   type="text"
                   autoComplete="off"
+                  defaultValue=""
                   className="input-field pl-10"
                   placeholder="Enter your full name"
                 />
@@ -147,6 +157,7 @@ const Register = () => {
                   })}
                   type="email"
                   autoComplete="off"
+                  defaultValue=""
                   className="input-field pl-10"
                   placeholder="Enter your email"
                 />
@@ -173,6 +184,7 @@ const Register = () => {
                   })}
                   type="tel"
                   autoComplete="off"
+                  defaultValue=""
                   className="input-field pl-10"
                   placeholder="Enter your phone number (optional)"
                 />
@@ -199,10 +211,11 @@ const Register = () => {
                     }
                   })}
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="off"
+                  autoComplete="new-password"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
+                  defaultValue=""
                   className="input-field pl-10 pr-10"
                   placeholder="Create a password"
                 />
@@ -237,10 +250,11 @@ const Register = () => {
                     validate: value => value === password || 'Passwords do not match'
                   })}
                   type="password"
-                  autoComplete="off"
+                  autoComplete="new-password"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
+                  defaultValue=""
                   className="input-field pl-10"
                   placeholder="Confirm your password"
                 />
@@ -256,6 +270,7 @@ const Register = () => {
               </label>
               <select
                 {...register('role', { required: 'Please select a role' })}
+                defaultValue=""
                 className="input-field"
               >
                 <option value="">Select your role</option>

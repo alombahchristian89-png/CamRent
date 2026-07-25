@@ -62,8 +62,6 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
     { value: 'lodge', label: 'Lodge', category: 'hospitality' },
     { value: 'resort', label: 'Resort', category: 'hospitality' },
     { value: 'serviced-apartment', label: 'Serviced Apartment', category: 'hospitality' },
-    { value: 'airbnb-unit', label: 'Airbnb Unit', category: 'hospitality' },
-    { value: 'holiday-home', label: 'Holiday Home', category: 'hospitality' },
     { value: 'commercial', label: 'Commercial (General)', category: 'commercial' }
   ]
   const rentalTypes = [
@@ -151,6 +149,10 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
     setValue('hospitalityInfo.checkOutTime', propertyData.hospitalityInfo?.checkOutTime || '')
     setValue('hospitalityInfo.roomsAvailable', propertyData.hospitalityInfo?.roomsAvailable ?? '')
     setValue('hospitalityInfo.maxOccupancy', propertyData.hospitalityInfo?.maxOccupancy ?? '')
+    setValue('hospitalityInfo.roomTypes', (propertyData.hospitalityInfo?.roomTypes || []).join(', '))
+    setValue('hospitalityInfo.bookingAvailability.instantBooking', propertyData.hospitalityInfo?.bookingAvailability?.instantBooking ? 'true' : 'false')
+    setValue('hospitalityInfo.bookingAvailability.minimumStayNights', propertyData.hospitalityInfo?.bookingAvailability?.minimumStayNights ?? '')
+    setValue('hospitalityInfo.bookingAvailability.maximumStayNights', propertyData.hospitalityInfo?.bookingAvailability?.maximumStayNights ?? '')
     setValue('residentialInfo.leaseDurationMonths', propertyData.residentialInfo?.leaseDurationMonths ?? '')
     setValue('residentialInfo.securityDeposit', propertyData.residentialInfo?.securityDeposit ?? '')
     setValue('location.city', propertyData.location?.city || '')
@@ -425,6 +427,20 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
 
     const selectedPrice = parseFloat(data.pricing?.[data.rentalType] || data.price || 0)
     const baseContactInfo = editMode && propertyData?.contactInfo ? propertyData.contactInfo : {}
+    const roomTypes = String(data.hospitalityInfo?.roomTypes || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+    if (['daily', 'weekly'].includes(data.rentalType) && selectedCategory !== 'hospitality') {
+      toast.error('Short-Term Accommodation listings must use Hotel, Guest House, Lodge, Resort, or Serviced Apartment types.')
+      return
+    }
+
+    if (['daily', 'weekly'].includes(data.rentalType) && roomTypes.length === 0) {
+      toast.error('Please add at least one room type for short-term accommodation listings.')
+      return
+    }
 
     const payload = {
       ...data,
@@ -445,7 +461,13 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
         checkInTime: data.hospitalityInfo?.checkInTime || '',
         checkOutTime: data.hospitalityInfo?.checkOutTime || '',
         roomsAvailable: parseInt(data.hospitalityInfo?.roomsAvailable || 0, 10),
-        maxOccupancy: parseInt(data.hospitalityInfo?.maxOccupancy || 0, 10)
+        maxOccupancy: parseInt(data.hospitalityInfo?.maxOccupancy || 0, 10),
+        roomTypes,
+        bookingAvailability: {
+          instantBooking: data.hospitalityInfo?.bookingAvailability?.instantBooking === 'true',
+          minimumStayNights: parseInt(data.hospitalityInfo?.bookingAvailability?.minimumStayNights || 1, 10),
+          maximumStayNights: parseInt(data.hospitalityInfo?.bookingAvailability?.maximumStayNights || 30, 10)
+        }
       },
       residentialInfo: {
         leaseDurationMonths: parseInt(data.residentialInfo?.leaseDurationMonths || 0, 10),
@@ -459,6 +481,7 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
         featuredVideo: videos[0]?.url || null
       }
     }
+    payload.accommodationInfo = payload.hospitalityInfo
     if (editMode && updatePropertyMutation) {
       updatePropertyMutation.mutate(payload)
       return
@@ -491,7 +514,7 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{editMode ? 'Edit Property' : 'Add New Property'}</h1>
           <p className="text-gray-600">
-            {editMode ? 'Update your property details, images, and videos' : 'List your property to connect with potential tenants'}
+            {editMode ? 'Update your property details, images, and videos' : 'List your rental property or short-term accommodation to connect with guests and tenants'}
           </p>
         </div>
 
@@ -614,7 +637,7 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
           {(isHospitality || isResidential) && (
             <div className="bg-white rounded-2xl shadow-soft p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                {isHospitality ? 'Hospitality Details' : 'Residential Lease Details'}
+                {isHospitality ? 'Short-Term Accommodation Details (Hotels & Guest Houses)' : 'Residential Lease Details'}
               </h2>
 
               {isHospitality && (
@@ -653,6 +676,46 @@ const AddProperty = ({ editMode = false, propertyData = null, updatePropertyMuta
                       min="1"
                       className="input-field"
                       placeholder="2"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Room Types</label>
+                    <input
+                      {...register('hospitalityInfo.roomTypes')}
+                      type="text"
+                      className="input-field"
+                      placeholder="Single, Double, Family Suite"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Use comma-separated room types.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Booking Mode</label>
+                    <select
+                      {...register('hospitalityInfo.bookingAvailability.instantBooking')}
+                      className="input-field"
+                    >
+                      <option value="false">Request & Confirm</option>
+                      <option value="true">Instant Booking</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Stay (nights)</label>
+                    <input
+                      {...register('hospitalityInfo.bookingAvailability.minimumStayNights')}
+                      type="number"
+                      min="1"
+                      className="input-field"
+                      placeholder="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Stay (nights)</label>
+                    <input
+                      {...register('hospitalityInfo.bookingAvailability.maximumStayNights')}
+                      type="number"
+                      min="1"
+                      className="input-field"
+                      placeholder="30"
                     />
                   </div>
                 </div>

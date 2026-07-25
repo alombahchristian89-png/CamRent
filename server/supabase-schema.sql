@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   documents JSONB DEFAULT '[]'::jsonb,
   profile_image TEXT,
   phone TEXT,
+  reset_password_token TEXT,
+  reset_password_expires TIMESTAMPTZ,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -56,6 +58,27 @@ CREATE TABLE IF NOT EXISTS public.properties (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'properties_short_term_accommodation_check'
+  ) THEN
+    ALTER TABLE public.properties
+      ADD CONSTRAINT properties_short_term_accommodation_check
+      CHECK (
+        rental_type NOT IN ('daily', 'weekly')
+        OR (
+          property_category = 'hospitality'
+          AND property_type IN ('hotel', 'guest-house', 'lodge', 'resort', 'serviced-apartment')
+          AND jsonb_typeof(COALESCE(hospitality_info->'roomTypes', '[]'::jsonb)) = 'array'
+          AND jsonb_array_length(COALESCE(hospitality_info->'roomTypes', '[]'::jsonb)) > 0
+        )
+      );
+  END IF;
+END $$;
+
 -- Favorites table
 CREATE TABLE IF NOT EXISTS public.favorites (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
@@ -92,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_properties_listing_status ON public.properties(li
 CREATE INDEX IF NOT EXISTS idx_properties_price ON public.properties(price);
 CREATE INDEX IF NOT EXISTS idx_properties_amenities_gin ON public.properties USING GIN (amenities);
 CREATE INDEX IF NOT EXISTS idx_properties_pricing_gin ON public.properties USING GIN (pricing);
+CREATE INDEX IF NOT EXISTS idx_properties_hospitality_info_gin ON public.properties USING GIN (hospitality_info);
 CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON public.favorites(user_id);
 CREATE INDEX IF NOT EXISTS idx_favorites_property_id ON public.favorites(property_id);
 CREATE INDEX IF NOT EXISTS idx_inquiries_tenant_id ON public.inquiries(tenant_id);

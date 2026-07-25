@@ -155,6 +155,8 @@ const normalizeVideos = (videos) => {
 const normalizeListingStatus = (value) => (value === 'taken' ? 'taken' : 'available');
 
 const RENTAL_TYPES = ['daily', 'weekly', 'monthly', 'yearly'];
+const SHORT_TERM_RENTAL_TYPES = ['daily', 'weekly'];
+const SHORT_STAY_ACCOMMODATION_TYPES = ['hotel', 'guest-house', 'lodge', 'resort', 'serviced-apartment'];
 const PROPERTY_CATEGORY_BY_TYPE = {
   studio: 'residential',
   apartment: 'residential',
@@ -168,9 +170,7 @@ const PROPERTY_CATEGORY_BY_TYPE = {
   'guest-house': 'hospitality',
   lodge: 'hospitality',
   resort: 'hospitality',
-  'serviced-apartment': 'hospitality',
-  'airbnb-unit': 'hospitality',
-  'holiday-home': 'hospitality'
+  'serviced-apartment': 'hospitality'
 };
 
 const toNumberOrNull = (value) => {
@@ -224,12 +224,54 @@ const normalizePricingForStorage = (pricing) => ({
 
 const normalizeHospitalityInfo = (value = {}) => {
   const source = toObject(value);
+
+  const roomTypes = Array.isArray(source.roomTypes)
+    ? source.roomTypes
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+      .slice(0, 12)
+    : [];
+
+  const bookingAvailabilitySource = toObject(source.bookingAvailability);
+
   return {
     checkInTime: source.checkInTime || '',
     checkOutTime: source.checkOutTime || '',
     roomsAvailable: Math.max(0, toNumberOrNull(source.roomsAvailable) || 0),
-    maxOccupancy: Math.max(1, toNumberOrNull(source.maxOccupancy) || 1)
+    maxOccupancy: Math.max(1, toNumberOrNull(source.maxOccupancy) || 1),
+    roomTypes,
+    bookingAvailability: {
+      instantBooking: bookingAvailabilitySource.instantBooking === true,
+      minimumStayNights: Math.max(1, toNumberOrNull(bookingAvailabilitySource.minimumStayNights) || 1),
+      maximumStayNights: Math.max(1, toNumberOrNull(bookingAvailabilitySource.maximumStayNights) || 30)
+    }
   };
+};
+
+const normalizeAccommodationInfo = (value = {}) => normalizeHospitalityInfo(value);
+
+const getShortTermAccommodationValidationError = ({ rentalType, propertyType, propertyCategory, accommodationInfo }) => {
+  if (!SHORT_TERM_RENTAL_TYPES.includes(rentalType)) {
+    return null;
+  }
+
+  if (propertyCategory !== 'hospitality') {
+    return 'Short-term accommodation listings must use the hospitality category.';
+  }
+
+  if (!SHORT_STAY_ACCOMMODATION_TYPES.includes(propertyType)) {
+    return 'Short-term accommodation listings are limited to hotels, guest houses, lodges, resorts, and serviced apartments.';
+  }
+
+  if (!Array.isArray(accommodationInfo?.roomTypes) || accommodationInfo.roomTypes.length === 0) {
+    return 'At least one room type is required for short-term accommodation listings.';
+  }
+
+  if ((accommodationInfo?.roomsAvailable || 0) < 1) {
+    return 'Rooms available must be at least 1 for short-term accommodation listings.';
+  }
+
+  return null;
 };
 
 const normalizeResidentialInfo = (value = {}) => {
@@ -284,6 +326,21 @@ const applyPropertyQueryFilters = ({ query, req, unsupportedColumns }) => {
 
   if (req.query.availability && !unsupportedColumns.has('listing_status')) {
     nextQuery = nextQuery.eq('listing_status', req.query.availability);
+  }
+
+  if (req.query.module === 'accommodation' && !unsupportedColumns.has('property_category')) {
+    nextQuery = nextQuery.eq('property_category', 'hospitality');
+  }
+
+  if (req.query.checkInDate) {
+    const parsedCheckIn = new Date(req.query.checkInDate);
+    if (!Number.isNaN(parsedCheckIn.getTime())) {
+      nextQuery = nextQuery.lte('available_from', parsedCheckIn.toISOString());
+    }
+  }
+
+  if (req.query.roomType && !unsupportedColumns.has('hospitality_info')) {
+    nextQuery = nextQuery.contains('hospitality_info', { roomTypes: [String(req.query.roomType).trim()] });
   }
 
   return nextQuery;
@@ -460,8 +517,27 @@ const createProperty = async (req, res) => {
       rentalType
     );
 
-    const hospitalityInfo = normalizeHospitalityInfo(req.body.hospitalityInfo || incomingContactInfo.hospitalityInfo);
+    const accommodationInfo = normalizeAccommodationInfo(
+      req.body.accommodationInfo
+      || req.body.hospitalityInfo
+      || incomingContactInfo.accommodationInfo
+      || incomingContactInfo.hospitalityInfo
+    );
     const residentialInfo = normalizeResidentialInfo(req.body.residentialInfo || incomingContactInfo.residentialInfo);
+
+    const shortTermValidationError = getShortTermAccommodationValidationError({
+      rentalType,
+      propertyType: req.body.propertyType,
+      propertyCategory,
+      accommodationInfo
+    });
+
+    if (shortTermValidationError) {
+      return res.status(400).json({
+        success: false,
+        message: shortTermValidationError
+      });
+    }
 
     const payload = {
       title: req.body.title,
@@ -483,7 +559,7 @@ const createProperty = async (req, res) => {
       property_category: propertyCategory,
       rental_type: rentalType,
       pricing: normalizePricingForStorage(normalizedPricing.pricing),
-      hospitality_info: hospitalityInfo,
+      hospitality_info: accommodationInfo,
       residential_info: residentialInfo,
       listing_status: listingStatus,
       contact_info: {
@@ -493,7 +569,8 @@ const createProperty = async (req, res) => {
         rentalType,
         propertyCategory,
         pricing: normalizePricingForStorage(normalizedPricing.pricing),
-        hospitalityInfo,
+        hospitalityInfo: accommodationInfo,
+        accommodationInfo,
         residentialInfo
       },
       created_at: new Date().toISOString(),
@@ -639,22 +716,45 @@ const updateProperty = async (req, res) => {
       rentalType
     );
 
+    const nextPropertyCategory = resolvePropertyCategory({
+      propertyType: nextPropertyType,
+      propertyCategory: req.body.propertyCategory || existingContactInfo.propertyCategory
+    });
+
+    const accommodationInfo = normalizeAccommodationInfo(
+      req.body.accommodationInfo
+      || req.body.hospitalityInfo
+      || existingContactInfo.accommodationInfo
+      || existingContactInfo.hospitalityInfo
+    );
+
+    const shortTermValidationError = getShortTermAccommodationValidationError({
+      rentalType,
+      propertyType: nextPropertyType,
+      propertyCategory: nextPropertyCategory,
+      accommodationInfo
+    });
+
+    if (shortTermValidationError) {
+      return res.status(400).json({
+        success: false,
+        message: shortTermValidationError
+      });
+    }
+
     if (req.body.price !== undefined || req.body.pricing !== undefined || req.body.rentalType !== undefined) {
       updates.price = normalizedPricing.selectedPrice;
     }
 
     if (req.body.rentalType !== undefined) updates.rental_type = rentalType;
     if (req.body.propertyCategory !== undefined || req.body.propertyType !== undefined) {
-      updates.property_category = resolvePropertyCategory({
-        propertyType: nextPropertyType,
-        propertyCategory: req.body.propertyCategory || existingContactInfo.propertyCategory
-      });
+      updates.property_category = nextPropertyCategory;
     }
     if (req.body.pricing !== undefined || req.body.price !== undefined || req.body.rentalType !== undefined) {
       updates.pricing = normalizePricingForStorage(normalizedPricing.pricing);
     }
-    if (req.body.hospitalityInfo !== undefined || req.body.propertyType !== undefined) {
-      updates.hospitality_info = normalizeHospitalityInfo(req.body.hospitalityInfo || existingContactInfo.hospitalityInfo);
+    if (req.body.hospitalityInfo !== undefined || req.body.accommodationInfo !== undefined || req.body.propertyType !== undefined) {
+      updates.hospitality_info = accommodationInfo;
     }
     if (req.body.residentialInfo !== undefined || req.body.propertyType !== undefined) {
       updates.residential_info = normalizeResidentialInfo(req.body.residentialInfo || existingContactInfo.residentialInfo);
@@ -684,6 +784,7 @@ const updateProperty = async (req, res) => {
       || req.body.propertyCategory !== undefined
       || req.body.pricing !== undefined
       || req.body.hospitalityInfo !== undefined
+      || req.body.accommodationInfo !== undefined
       || req.body.residentialInfo !== undefined
       || req.body.propertyType !== undefined
       || req.body.price !== undefined
@@ -692,12 +793,10 @@ const updateProperty = async (req, res) => {
       updates.contact_info = {
         ...contactInfoBase,
         rentalType,
-        propertyCategory: resolvePropertyCategory({
-          propertyType: nextPropertyType,
-          propertyCategory: req.body.propertyCategory || contactInfoBase.propertyCategory
-        }),
+        propertyCategory: nextPropertyCategory,
         pricing: normalizePricingForStorage(normalizedPricing.pricing),
-        hospitalityInfo: normalizeHospitalityInfo(req.body.hospitalityInfo || contactInfoBase.hospitalityInfo),
+        hospitalityInfo: accommodationInfo,
+        accommodationInfo,
         residentialInfo: normalizeResidentialInfo(req.body.residentialInfo || contactInfoBase.residentialInfo)
       };
     }

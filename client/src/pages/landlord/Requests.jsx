@@ -9,6 +9,7 @@ const LandlordRequests = () => {
   const [page, setPage] = useState(1)
   const [activeResponse, setActiveResponse] = useState(null)
   const [responseMessage, setResponseMessage] = useState('')
+  const [responseStatus, setResponseStatus] = useState('confirmed')
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery(
@@ -38,6 +39,10 @@ const LandlordRequests = () => {
   const notifications = data?.notifications || []
   const unreadCount = data?.unreadCount || 0
   const pagination = data?.pagination
+  const requestNotifications = notifications.filter((notification) => {
+    const metadata = notification.metadata || {}
+    return metadata.event === 'tenant_accommodation_booking_request' || metadata.event === 'tenant_accommodation_search_request' || metadata.event === 'tenant_property_request'
+  })
 
   if (isLoading) {
     return (
@@ -53,26 +58,26 @@ const LandlordRequests = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Request Inbox</h1>
-            <p className="mt-2 text-sm text-slate-600">View tenant requests and reply from one place.</p>
+            <p className="mt-2 text-sm text-slate-600">View booking requests for hotels and guest houses, then send status updates to guests.</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">
             <Inbox className="h-4 w-4" />
-            {unreadCount} unread requests
+            {unreadCount} unread items
           </div>
         </div>
       </div>
 
-      {notifications.length === 0 ? (
+      {requestNotifications.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
           <Inbox className="mx-auto h-12 w-12 text-slate-400" />
-          <h2 className="mt-4 text-lg font-semibold text-slate-900">No requests yet</h2>
-          <p className="mt-2 text-sm text-slate-500">Tenants will see your business in their request feed once you are verified.</p>
+          <h2 className="mt-4 text-lg font-semibold text-slate-900">No booking requests yet</h2>
+          <p className="mt-2 text-sm text-slate-500">Guests will appear here when they request rooms from your accommodation listings.</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {notifications.map((notification) => {
+          {requestNotifications.map((notification) => {
             const metadata = notification.metadata || {}
-            const isRequest = metadata.event === 'tenant_property_request'
+            const isRequest = metadata.event === 'tenant_property_request' || metadata.event === 'tenant_accommodation_search_request' || metadata.event === 'tenant_accommodation_booking_request'
 
             return (
               <div key={notification.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -90,8 +95,13 @@ const LandlordRequests = () => {
                           <p><span className="font-semibold">Email:</span> {metadata.tenantEmail || 'Unknown'}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">
-                          <p><span className="font-semibold">Type:</span> {metadata.propertyType || 'Any'}</p>
+                          <p><span className="font-semibold">Accommodation:</span> {metadata.propertyType || metadata.accommodationType || 'Any'}</p>
+                          <p><span className="font-semibold">Room type:</span> {metadata.roomType || 'Any'}</p>
                           <p><span className="font-semibold">City:</span> {metadata.city || 'Any'}</p>
+                          {(metadata.checkInDate || metadata.checkOutDate) && (
+                            <p><span className="font-semibold">Dates:</span> {metadata.checkInDate || '--'} to {metadata.checkOutDate || '--'}</p>
+                          )}
+                          {metadata.guests != null && <p><span className="font-semibold">Guests:</span> {metadata.guests}</p>}
                         </div>
                       </div>
                     )}
@@ -121,7 +131,10 @@ const LandlordRequests = () => {
                       <p className="text-sm font-semibold text-slate-900">Reply to this request</p>
                       <button
                         type="button"
-                        onClick={() => setActiveResponse(notification.id)}
+                        onClick={() => {
+                          setActiveResponse(notification.id)
+                          setResponseStatus('confirmed')
+                        }}
                         className="text-primary text-sm font-medium"
                       >
                         Respond
@@ -129,6 +142,20 @@ const LandlordRequests = () => {
                     </div>
                     {activeResponse === notification.id && (
                       <div className="mt-4 space-y-3">
+                        {metadata.event === 'tenant_accommodation_booking_request' && (
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-slate-700">Booking status</label>
+                            <select
+                              value={responseStatus}
+                              onChange={(event) => setResponseStatus(event.target.value)}
+                              className="input-field w-full"
+                            >
+                              <option value="confirmed">Confirmed</option>
+                              <option value="pending">Pending</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </div>
+                        )}
                         <textarea
                           value={responseMessage}
                           onChange={(event) => setResponseMessage(event.target.value)}
@@ -139,7 +166,7 @@ const LandlordRequests = () => {
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => respondMutation.mutate({ notificationId: notification.id, response: responseMessage.trim() })}
+                            onClick={() => respondMutation.mutate({ notificationId: notification.id, response: responseMessage.trim(), bookingStatus: responseStatus })}
                             disabled={!responseMessage.trim() || respondMutation.isLoading}
                             className="btn-primary"
                           >

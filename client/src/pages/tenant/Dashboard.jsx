@@ -20,6 +20,10 @@ const TenantDashboard = () => {
   const { user } = useAuth()
 
   const [propertyType, setPropertyType] = useState('')
+  const [roomType, setRoomType] = useState('')
+  const [guests, setGuests] = useState('')
+  const [checkInDate, setCheckInDate] = useState('')
+  const [checkOutDate, setCheckOutDate] = useState('')
   const [city, setCity] = useState('')
   const [minBudget, setMinBudget] = useState('')
   const [maxBudget, setMaxBudget] = useState('')
@@ -41,15 +45,20 @@ const TenantDashboard = () => {
     }
   )
 
-  const propertyTypes = ['studio', 'apartment', 'house', 'villa', 'commercial']
+  const propertyTypes = ['hotel', 'guest-house', 'lodge', 'resort', 'serviced-apartment']
+  const roomTypes = ['Single', 'Double', 'Twin', 'Suite', 'Family', 'Deluxe']
   const cities = ['Douala', 'Yaoundé', 'Bamenda', 'Bafoussam', 'Garoua', 'Maroua', 'Ngaoundéré', 'Bertoua', 'Edea', 'Kribi', 'Limbe']
 
   const requestMutation = useMutation(
     (payload) => notificationAPI.sendPropertyRequest(payload),
     {
       onSuccess: () => {
-        toast.success('Your property request was sent to verified landlords.')
+        toast.success('Your accommodation request was sent to verified providers.')
         setPropertyType('')
+        setRoomType('')
+        setGuests('')
+        setCheckInDate('')
+        setCheckOutDate('')
         setCity('')
         setMinBudget('')
         setMaxBudget('')
@@ -63,16 +72,25 @@ const TenantDashboard = () => {
 
   const handleSubmitRequest = () => {
     if (!propertyType) {
-      toast.error('Please choose a property type')
+      toast.error('Please choose an accommodation type')
       return
     }
     if (!requestMessage.trim()) {
-      toast.error('Please enter your request details')
+      toast.error('Please enter your booking request details')
+      return
+    }
+    if (checkInDate && checkOutDate && new Date(checkOutDate) <= new Date(checkInDate)) {
+      toast.error('Check-out date must be after check-in date')
       return
     }
 
     requestMutation.mutate({
       propertyType,
+      accommodationType: propertyType,
+      roomType: roomType || undefined,
+      guests: guests ? Number(guests) : undefined,
+      checkInDate: checkInDate || undefined,
+      checkOutDate: checkOutDate || undefined,
       city,
       minBudget: minBudget ? Number(minBudget) : undefined,
       maxBudget: maxBudget ? Number(maxBudget) : undefined,
@@ -222,7 +240,7 @@ const TenantDashboard = () => {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Request support</p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-900">Tell landlords what you need</h2>
-              <p className="mt-2 text-sm text-slate-500">Send a targeted request by property type and let approved landlords reach out to you.</p>
+              <p className="mt-2 text-sm text-slate-500">Send a targeted booking request for hotels, guest houses, and other temporary accommodation.</p>
             </div>
             <button
               type="button"
@@ -235,17 +253,59 @@ const TenantDashboard = () => {
 
           <div id="tenant-request-form" className="mt-6 grid gap-4 lg:grid-cols-2">
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-slate-700">Property type</label>
+              <label className="block text-sm font-medium text-slate-700">Accommodation type</label>
               <select
                 value={propertyType}
                 onChange={(event) => setPropertyType(event.target.value)}
                 className="input-field w-full"
               >
-                <option value="">Select a type</option>
+                <option value="">Select accommodation type</option>
                 {propertyTypes.map((type) => (
-                  <option key={type} value={type}> {type.charAt(0).toUpperCase() + type.slice(1)} </option>
+                  <option key={type} value={type}> {type.split('-').map((item) => item.charAt(0).toUpperCase() + item.slice(1)).join(' ')} </option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Room type (optional)</label>
+              <select
+                value={roomType}
+                onChange={(event) => setRoomType(event.target.value)}
+                className="input-field w-full"
+              >
+                <option value="">Any room type</option>
+                {roomTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Guests (optional)</label>
+              <input
+                type="number"
+                value={guests}
+                onChange={(event) => setGuests(event.target.value)}
+                className="input-field w-full"
+                min="1"
+                placeholder="2"
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Check-in date (optional)</label>
+              <input
+                type="date"
+                value={checkInDate}
+                onChange={(event) => setCheckInDate(event.target.value)}
+                className="input-field w-full"
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-slate-700">Check-out date (optional)</label>
+              <input
+                type="date"
+                value={checkOutDate}
+                onChange={(event) => setCheckOutDate(event.target.value)}
+                className="input-field w-full"
+              />
             </div>
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">City (optional)</label>
@@ -287,7 +347,7 @@ const TenantDashboard = () => {
                 onChange={(event) => setRequestMessage(event.target.value)}
                 rows={4}
                 className="input-field w-full min-h-[140px] resize-none"
-                placeholder="I need a 2-bedroom apartment with reliable water and parking close to downtown."
+                placeholder="I need a double room in a guest house with WiFi and breakfast included near the city center."
               />
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -296,9 +356,9 @@ const TenantDashboard = () => {
                   disabled={requestMutation.isLoading}
                   className="btn-primary"
                 >
-                  {requestMutation.isLoading ? 'Sending...' : 'Send request to landlords'}
+                  {requestMutation.isLoading ? 'Sending...' : 'Send accommodation request'}
                 </button>
-                <p className="text-sm text-slate-500">Verified landlords will receive your need and can respond directly to you.</p>
+                <p className="text-sm text-slate-500">Verified accommodation providers will receive your request and can respond with booking status updates.</p>
               </div>
             </div>
           </div>

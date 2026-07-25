@@ -128,6 +128,23 @@ const Layout = () => {
   }, [])
 
   useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+
+    const previousOverflow = document.body.style.overflow
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isMobileMenuOpen])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -317,11 +334,10 @@ const Layout = () => {
   }, [getConversationMessages, isLandlord, isTenant, queryClient, user?._id, user?.id])
 
   const handleLogout = async () => {
-    queryClient.clear()
-    await clearSensitiveData()
-    await logout()
-    navigate('/')
     setIsMobileMenuOpen(false)
+    queryClient.clear()
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   const isActivePath = (path) => {
@@ -561,7 +577,7 @@ const Layout = () => {
           <div className="flex min-w-0 flex-1 flex-col">
             <div className="sticky top-0 z-40 px-4 pt-4 lg:px-6 lg:pt-5">
               <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="admin-surface px-4 py-3 sm:px-5">
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setIsMobileMenuOpen((prev) => !prev)}
@@ -579,7 +595,7 @@ const Layout = () => {
                     </button>
                   </div>
 
-                  <label className="admin-filter-field min-w-[220px] flex-1">
+                  <label className="admin-filter-field order-3 w-full min-w-0 sm:order-none sm:min-w-[220px] sm:flex-1">
                     <Search className="h-4 w-4 text-slate-400" />
                     <input
                       type="text"
@@ -590,7 +606,7 @@ const Layout = () => {
                     />
                   </label>
 
-                  <div className="ml-auto flex items-center gap-2">
+                  <div className="ml-auto flex items-center gap-2 sm:ml-0">
                     <button className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
                       <BellDot className="h-5 w-5" />
                       <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-rose-500" />

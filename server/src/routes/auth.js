@@ -10,16 +10,21 @@ const registerValidation = [
     .trim()
     .notEmpty()
     .withMessage('Name is required')
-    .isLength({ max: 50 })
-    .withMessage('Name cannot exceed 50 characters'),
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
   body('email')
+    .trim()
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email'),
   body('phone')
-    .optional()
-    .isMobilePhone()
-    .withMessage('Please provide a valid phone number'),
+    .optional({ checkFalsy: true })
+    .trim()
+    .isMobilePhone('any', { strictMode: false })
+    .withMessage('Please provide a valid phone number')
+    .bail()
+    .isLength({ max: 30 })
+    .withMessage('Phone cannot exceed 30 characters'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters long'),

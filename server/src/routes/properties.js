@@ -24,6 +24,40 @@ const validPropertyTypes = [
 
 const validRentalTypes = ['daily', 'weekly', 'monthly', 'yearly'];
 const validPropertyCategories = ['residential', 'commercial', 'hospitality'];
+const shortTermRentalTypes = ['daily', 'weekly'];
+const shortStayAccommodationTypes = ['hotel', 'guest-house', 'lodge', 'resort', 'serviced-apartment'];
+
+const validateShortTermAccommodationRules = (value, { req }) => {
+  const rentalType = req.body?.rentalType;
+  if (!shortTermRentalTypes.includes(rentalType)) return true;
+
+  const propertyType = req.body?.propertyType;
+  const propertyCategory = req.body?.propertyCategory;
+
+  if (propertyCategory && propertyCategory !== 'hospitality') {
+    throw new Error('Short-term accommodation listings must use the hospitality category');
+  }
+
+  if (!shortStayAccommodationTypes.includes(propertyType)) {
+    throw new Error('Short-term listings are restricted to hotels, guest houses, lodges, resorts, and serviced apartments');
+  }
+
+  const source = (req.body?.accommodationInfo && typeof req.body.accommodationInfo === 'object')
+    ? req.body.accommodationInfo
+    : (req.body?.hospitalityInfo && typeof req.body.hospitalityInfo === 'object')
+      ? req.body.hospitalityInfo
+      : {};
+
+  const roomTypes = Array.isArray(source.roomTypes)
+    ? source.roomTypes.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+
+  if (!roomTypes.length) {
+    throw new Error('At least one room type is required for short-term accommodation listings');
+  }
+
+  return true;
+};
 
 // Validation rules
 const createPropertyValidation = [
@@ -92,6 +126,12 @@ const createPropertyValidation = [
     .optional()
     .isObject()
     .withMessage('Hospitality info must be a valid object'),
+  body('accommodationInfo')
+    .optional()
+    .isObject()
+    .withMessage('Accommodation info must be a valid object'),
+  body('rentalType')
+    .custom(validateShortTermAccommodationRules),
   body('residentialInfo')
     .optional()
     .isObject()
@@ -180,6 +220,13 @@ const updatePropertyValidation = [
     .optional()
     .isObject()
     .withMessage('Hospitality info must be a valid object'),
+  body('accommodationInfo')
+    .optional()
+    .isObject()
+    .withMessage('Accommodation info must be a valid object'),
+  body('rentalType')
+    .optional()
+    .custom(validateShortTermAccommodationRules),
   body('residentialInfo')
     .optional()
     .isObject()

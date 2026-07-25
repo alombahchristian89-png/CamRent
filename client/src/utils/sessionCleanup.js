@@ -1,29 +1,38 @@
 const PRESERVED_LOCAL_KEYS = new Set(['camrent-theme-mode', 'camrent-language'])
+const SENSITIVE_LOCAL_KEYS = new Set(['accessToken', 'refreshToken', 'user', 'loginEmail', 'lastEmail', 'registerEmail', 'resetToken'])
+const SENSITIVE_SESSION_KEYS = new Set(['loginEmail', 'lastEmail', 'registerEmail', 'resetToken'])
+
+const removeSensitiveKeys = (storage, sensitiveKeys) => {
+  if (typeof storage === 'undefined' || !storage?.length) return
+
+  const keysToRemove = []
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index)
+    if (!key || PRESERVED_LOCAL_KEYS.has(key)) continue
+
+    const normalizedKey = key.toLowerCase()
+    const isSensitiveKey = sensitiveKeys.has(key) || normalizedKey.includes('token') || normalizedKey.includes('auth') || normalizedKey.includes('session') || normalizedKey.includes('user')
+
+    if (isSensitiveKey) {
+      keysToRemove.push(key)
+    }
+  }
+
+  keysToRemove.forEach((key) => {
+    storage.removeItem(key)
+  })
+}
 
 export const clearClientSessionData = ({ hardClear = false } = {}) => {
   if (typeof window === 'undefined') return
 
-  const preservedEntries = []
-  if (!hardClear) {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index)
-      if (!key || !PRESERVED_LOCAL_KEYS.has(key)) continue
-      preservedEntries.push([key, window.localStorage.getItem(key)])
-    }
+  if (hardClear) {
+    removeSensitiveKeys(window.localStorage, SENSITIVE_LOCAL_KEYS)
+    removeSensitiveKeys(window.sessionStorage, SENSITIVE_SESSION_KEYS)
+  } else {
+    removeSensitiveKeys(window.sessionStorage, SENSITIVE_SESSION_KEYS)
   }
 
-  window.localStorage.clear()
-
-  if (!hardClear) {
-    preservedEntries.forEach(([key, value]) => {
-      if (value !== null) {
-        window.localStorage.setItem(key, value)
-      }
-    })
-  }
-
-  window.sessionStorage.clear()
-  
   // Clear sensitive data from memory
   if (hardClear) {
     // Remove auth-related cookies
@@ -39,68 +48,6 @@ export const clearClientSessionData = ({ hardClear = false } = {}) => {
 
 export const clearSensitiveData = async () => {
   if (typeof window === 'undefined') return
-  
-  // Clear all sensitive user data from various storage mechanisms
+
   clearClientSessionData({ hardClear: true })
-  
-  // Clear ALL forms on the page
-  const allForms = document.querySelectorAll('form')
-  allForms.forEach((form) => {
-    form.reset()
-    // Also manually clear all inputs
-    const inputs = form.querySelectorAll('input, textarea, select')
-    inputs.forEach((input) => {
-      input.value = ''
-      input.checked = false
-    })
-  })
-  
-  // Clear input field values site-wide
-  const allInputs = document.querySelectorAll('input[type="email"], input[type="password"], input[type="text"], input[type="tel"]')
-  allInputs.forEach((input) => {
-    input.value = ''
-    input.autocomplete = 'off'
-  })
-  
-  // Clear any form data that might be in memory
-  const allTextAreas = document.querySelectorAll('textarea')
-  allTextAreas.forEach((textarea) => {
-    textarea.value = ''
-  })
-  
-  // Clear IndexedDB if used (wait for completion)
-  if (typeof indexedDB !== 'undefined') {
-    try {
-      const databases = await indexedDB.databases()
-      for (const db of databases) {
-        await new Promise((resolve, reject) => {
-          const request = indexedDB.deleteDatabase(db.name)
-          request.onsuccess = resolve
-          request.onerror = reject
-        })
-      }
-    } catch (e) {
-      // Silently fail if IndexedDB is not available
-    }
-  }
-  
-  // Clear any cached data from window object
-  Object.keys(window).forEach((key) => {
-    if (key.toLowerCase().includes('cache') || key.toLowerCase().includes('data') || key.toLowerCase().includes('form')) {
-      try {
-        delete window[key]
-      } catch (e) {
-        // Some properties cannot be deleted, ignore
-      }
-    }
-  })
-  
-  // Clear browser's "remember me" data
-  if (typeof document !== 'undefined') {
-    // Disable browser autofill
-    const inputs = document.querySelectorAll('input')
-    inputs.forEach((input) => {
-      input.setAttribute('autocomplete', 'off')
-    })
-  }
 }

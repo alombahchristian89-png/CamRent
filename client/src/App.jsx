@@ -47,15 +47,19 @@ const AdminViewings = lazy(() => import('./pages/admin/Viewings'))
 const SettingsPage = lazy(() => import('./pages/shared/Settings'))
 
 // Protected Route Component
-const ProtectedRoute = ({ children, allowedRoles }) => {
+const ProtectedRoute = ({ children, allowedRoles, redirectTo = '/login' }) => {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return <LoadingSpinner />
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <LoadingSpinner />
+      </div>
+    )
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to={redirectTo} replace />
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -71,7 +75,11 @@ const PublicRoute = ({ children, allowAuthenticated = false }) => {
   const location = useLocation()
 
   if (loading) {
-    return <LoadingSpinner />
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <LoadingSpinner />
+      </div>
+    )
   }
 
   if (user && !allowAuthenticated) {
@@ -90,6 +98,40 @@ const PublicRoute = ({ children, allowAuthenticated = false }) => {
 
 function App() {
   const [language, setLanguage] = useState('en')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const shouldRecoverFromChunkError = (value) => {
+      const message = String(value || '').toLowerCase()
+      return (
+        message.includes('loading chunk')
+        || message.includes('failed to fetch dynamically imported module')
+        || message.includes('dynamically imported module')
+        || message.includes('chunkloaderror')
+      )
+    }
+
+    const onError = (event) => {
+      if (shouldRecoverFromChunkError(event?.message || event?.error?.message)) {
+        console.warn('Chunk load issue detected. The app will keep the current session and retry via the existing route fallback.', event)
+      }
+    }
+
+    const onUnhandledRejection = (event) => {
+      if (shouldRecoverFromChunkError(event?.reason?.message || event?.reason)) {
+        console.warn('Chunk load issue detected in promise rejection.', event)
+      }
+    }
+
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onUnhandledRejection)
+
+    return () => {
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onUnhandledRejection)
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -187,8 +229,22 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
-          <Route path="properties" element={<PropertyList />} />
-          <Route path="properties/:id" element={<PropertyDetail />} />
+          <Route
+            path="properties"
+            element={
+              <ProtectedRoute allowedRoles={['tenant']} redirectTo="/register">
+                <PropertyList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="properties/:id"
+            element={
+              <ProtectedRoute allowedRoles={['tenant']} redirectTo="/register">
+                <PropertyDetail />
+              </ProtectedRoute>
+            }
+          />
         </Route>
 
         {/* Auth Routes */}

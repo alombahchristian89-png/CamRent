@@ -150,7 +150,7 @@ const PropertiesManagement = () => {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex flex-col items-start justify-center gap-1 py-3 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:py-0">
             <h1 className="text-xl font-semibold text-gray-900">{t('adminPropertiesTitle', 'Properties Management')}</h1>
             <div className="text-sm text-gray-500">
               {t('adminPropertiesTotalCount', '{total} total properties').replace('{total}', String(pagination.total || 0))}
@@ -170,7 +170,10 @@ const PropertiesManagement = () => {
                   type="text"
                   placeholder={t('adminPropertiesSearchPlaceholder', 'Search properties by title, location, or landlord...')}
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value)
+                    setCurrentPage(1)
+                  }}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
@@ -178,7 +181,10 @@ const PropertiesManagement = () => {
             <div className="sm:w-48">
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value)
+                  setCurrentPage(1)
+                }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               >
                 <option value="all">{t('adminUsersAllStatus', 'All Status')}</option>
@@ -205,7 +211,90 @@ const PropertiesManagement = () => {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-3 p-3">
+                {properties.map((property) => (
+                  <article key={property._id} className="rounded-xl border border-gray-200 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                        {property.images && property.images.length > 0 ? (
+                          <img
+                            className="h-full w-full object-cover"
+                            src={property.images[0].url}
+                            alt={property.title}
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center">
+                            <Home className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{property.title}</p>
+                        <p className="mt-0.5 flex items-center text-xs text-gray-500">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {property.location?.city || t('adminPropertiesNoLocation', 'No location')}
+                        </p>
+                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(property)}`}>
+                        {getStatusText(property)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-gray-500">{t('adminPropertyLandlord', 'Landlord')}</p>
+                        <p className="text-gray-900 truncate">{property.landlord?.name || t('adminCommonUnknown', 'Unknown')}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">{t('adminPropertyPrice', 'Price')}</p>
+                        <p className="text-gray-900">{formatXaf(property.price)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">{t('adminPropertiesCreated', 'Created')}</p>
+                        <p className="text-gray-900">{formatDate(property.createdAt)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">{t('adminPropertiesType', 'Type')}</p>
+                        <p className="text-gray-900 truncate">{property.type || t('adminPropertiesNA', 'N/A')} • {property.bedrooms || 0} {t('adminPropertiesBed', 'bed')}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => window.open(`/properties/${property._id}`, '_blank')}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-800"
+                        title={t('adminPropertiesViewProperty', 'View Property')}
+                      >
+                        <Eye className="h-4 w-4" />
+                        {t('adminPropertiesViewProperty', 'View Property')}
+                      </button>
+                      {property.listingStatus === 'taken' && (
+                        <button
+                          onClick={() => updatePropertyStatusMutation.mutate({
+                            propertyId: property._id,
+                            listingStatus: 'available'
+                          })}
+                          className="inline-flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-800"
+                          title={t('adminPropertiesRelistProperty', 'Re-list Property')}
+                        >
+                          {t('adminPropertiesRelist', 'Re-list')}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => openDeleteModal(property)}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-red-500 hover:text-red-700"
+                        title={t('adminPropertiesDeleteProperty', 'Delete Property')}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {t('adminPropertiesDeleteProperty', 'Delete Property')}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -330,6 +419,7 @@ const PropertiesManagement = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
 
           {/* Pagination */}

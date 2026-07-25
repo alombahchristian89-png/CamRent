@@ -84,8 +84,8 @@ const LandlordNotifications = () => {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Landlord Notifications</h1>
-            <p className="mt-2 text-sm text-slate-600">Requests and alerts from tenants and your property network.</p>
+            <h1 className="text-2xl font-bold text-slate-900">Accommodation Notifications</h1>
+            <p className="mt-2 text-sm text-slate-600">Booking requests and alerts from guests and your accommodation network.</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
@@ -115,7 +115,10 @@ const LandlordNotifications = () => {
             {notifications.map((notification) => {
               const isRead = notification.is_read === true
               const metadata = notification.metadata || {}
-              const isTenantRequest = metadata.event === 'tenant_property_request'
+              const isTenantRequest =
+                metadata.event === 'tenant_property_request'
+                || metadata.event === 'tenant_accommodation_search_request'
+                || metadata.event === 'tenant_accommodation_booking_request'
 
               return (
                 <div
@@ -128,8 +131,11 @@ const LandlordNotifications = () => {
                       <p className="mt-1 text-sm text-slate-600">{notification.message}</p>
                       {isTenantRequest && (
                         <div className="mt-3 rounded-2xl bg-slate-100 p-3 text-sm text-slate-700">
-                          <p><span className="font-semibold">Property type:</span> {metadata.propertyType || 'Any'}</p>
+                          <p><span className="font-semibold">Accommodation type:</span> {metadata.propertyType || metadata.accommodationType || 'Any'}</p>
+                          <p><span className="font-semibold">Room type:</span> {metadata.roomType || 'Any'}</p>
                           {metadata.city && <p><span className="font-semibold">City:</span> {metadata.city}</p>}
+                          {(metadata.checkInDate || metadata.checkOutDate) && <p><span className="font-semibold">Dates:</span> {metadata.checkInDate || '--'} to {metadata.checkOutDate || '--'}</p>}
+                          {metadata.guests != null && <p><span className="font-semibold">Guests:</span> {metadata.guests}</p>}
                           {metadata.bedrooms != null && <p><span className="font-semibold">Bedrooms:</span> {metadata.bedrooms}</p>}
                           {metadata.minBudget != null && <p><span className="font-semibold">Min budget:</span> {metadata.minBudget}</p>}
                           {metadata.maxBudget != null && <p><span className="font-semibold">Max budget:</span> {metadata.maxBudget}</p>}
@@ -163,7 +169,7 @@ const LandlordNotifications = () => {
                       <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
                         <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                           <MessageSquare className="h-4 w-4" />
-                          Respond to tenant request
+                          Respond to booking request
                         </div>
                         <textarea
                           value={responseMessage}
@@ -203,7 +209,7 @@ const LandlordNotifications = () => {
                         }}
                         className="self-start rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200"
                       >
-                        Reply to request
+                        Reply to booking request
                       </button>
                     )}
                     {!isTenantRequest && (

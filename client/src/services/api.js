@@ -48,9 +48,10 @@ api.interceptors.response.use(
           return api(originalRequest)
         }
       } catch (refreshError) {
-        // Refresh failed, logout user
-        await clearSensitiveData()
-        window.location.href = '/login'
+        // Refresh failed, clear the client session and let the app react without a hard reload
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:logout'))
+        }
         return Promise.reject(refreshError)
       }
     }

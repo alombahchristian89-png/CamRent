@@ -36,6 +36,28 @@ Expected output:
 ✅ Table: inquiries (ready)
 ```
 
+### Step 2.1: Apply Password Reset Migration
+
+Run this command from the repository root:
+```bash
+npm --prefix server run migrate:password-reset
+```
+
+Expected success output includes:
+```json
+{"applied":true,"columns":["reset_password_expires","reset_password_token"]}
+```
+
+If direct DB access is blocked by network/DNS, run the SQL in Supabase SQL Editor instead:
+```sql
+ALTER TABLE public.users
+       ADD COLUMN IF NOT EXISTS reset_password_token TEXT,
+       ADD COLUMN IF NOT EXISTS reset_password_expires TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_users_reset_password_token
+       ON public.users(reset_password_token);
+```
+
 ### Step 3: Start Backend
 
 ```bash

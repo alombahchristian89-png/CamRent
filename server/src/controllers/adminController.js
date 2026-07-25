@@ -133,18 +133,80 @@ const getValidationErrorResponse = (req, res) => {
   });
 };
 
+const normalizePhone = (phone) => {
+  if (phone === null || phone === undefined) return null;
+
+  const cleaned = String(phone).trim().replace(/[^\d+]/g, '');
+  if (!cleaned) return null;
+
+  if (cleaned.startsWith('+')) {
+    return `+${cleaned.slice(1).replace(/\+/g, '')}`;
+  }
+
+  return cleaned.replace(/\+/g, '');
+};
+
+const isValidEmail = (value) => {
+  if (!value) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+};
+
+const isValidPhone = (value) => {
+  if (!value) return false;
+  return /^\+?[1-9]\d{7,14}$/.test(String(value));
+};
+
 const createAdminUser = async (req, res) => {
   try {
     const validationErrorResponse = getValidationErrorResponse(req, res);
     if (validationErrorResponse) return validationErrorResponse;
 
     const { name, email, password, phone, language } = req.body;
+    const safeName = String(name || '').trim();
+    const safeEmail = String(email || '').trim().toLowerCase();
+    const safePhone = normalizePhone(phone);
     const safeLanguage = language === 'fr' ? 'fr' : 'en';
+
+    if (!safeName || safeName.length < 2 || safeName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be between 2 and 100 characters'
+      });
+    }
+
+    if (!isValidEmail(safeEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email'
+      });
+    }
+
+    if (safePhone && !isValidPhone(safePhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number'
+      });
+    }
+
+    const { data: existingNameUser, error: existingNameError } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('name', safeName)
+      .maybeSingle();
+
+    if (existingNameError) throw existingNameError;
+
+    if (existingNameUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this name already exists'
+      });
+    }
 
     const { data: existingUser, error: existingUserError } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', safeEmail)
       .maybeSingle();
 
     if (existingUserError) throw existingUserError;
@@ -156,15 +218,32 @@ const createAdminUser = async (req, res) => {
       });
     }
 
+    if (safePhone) {
+      const { data: existingPhoneUser, error: existingPhoneError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', safePhone)
+        .maybeSingle();
+
+      if (existingPhoneError) throw existingPhoneError;
+
+      if (existingPhoneUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this phone number already exists'
+        });
+      }
+    }
+
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const { data: userRow, error: insertError } = await supabase
       .from('users')
       .insert({
-        name,
-        email,
-        phone: phone || null,
+        name: safeName,
+        email: safeEmail,
+        phone: safePhone,
         password: hashedPassword,
         role: 'admin',
         language: safeLanguage,
@@ -1050,13 +1129,89 @@ const updateUser = async (req, res) => {
       });
     }
 
+    const nextName = typeof name === 'string' ? name.trim() : userRow.name;
+    const nextEmail = typeof email === 'string' ? email.trim().toLowerCase() : userRow.email;
+    const nextPhone = typeof phone === 'string'
+      ? normalizePhone(phone)
+      : normalizePhone(userRow.phone);
+
+    if (!nextName || nextName.length < 2 || nextName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be between 2 and 100 characters'
+      });
+    }
+
+    if (!isValidEmail(nextEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email'
+      });
+    }
+
+    if (nextPhone && !isValidPhone(nextPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number'
+      });
+    }
+
+    const { data: duplicateNameUser, error: duplicateNameError } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('name', nextName)
+      .neq('id', userId)
+      .maybeSingle();
+
+    if (duplicateNameError) throw duplicateNameError;
+
+    if (duplicateNameUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this name already exists'
+      });
+    }
+
+    const { data: duplicateEmailUser, error: duplicateEmailError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', nextEmail)
+      .neq('id', userId)
+      .maybeSingle();
+
+    if (duplicateEmailError) throw duplicateEmailError;
+
+    if (duplicateEmailUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    if (nextPhone) {
+      const { data: duplicatePhoneUser, error: duplicatePhoneError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', nextPhone)
+        .neq('id', userId)
+        .maybeSingle();
+
+      if (duplicatePhoneError) throw duplicatePhoneError;
+
+      if (duplicatePhoneUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this phone number already exists'
+        });
+      }
+    }
+
     const payload = {
+      name: nextName,
+      email: nextEmail,
+      phone: nextPhone,
       updated_at: new Date().toISOString()
     };
-
-    if (typeof name === 'string' && name.trim()) payload.name = name.trim();
-    if (typeof email === 'string' && email.trim()) payload.email = email.trim().toLowerCase();
-    if (typeof phone === 'string') payload.phone = phone.trim();
 
     const { data: updatedRow, error: updateError } = await supabase
       .from('users')

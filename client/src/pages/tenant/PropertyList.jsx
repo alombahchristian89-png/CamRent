@@ -34,6 +34,9 @@ const PropertyList = () => {
     propertyCategory: searchParams.get('propertyCategory') || '',
     propertyType: searchParams.get('propertyType') || '',
     rentalType: searchParams.get('rentalType') || '',
+    roomType: searchParams.get('roomType') || '',
+    checkInDate: searchParams.get('checkInDate') || '',
+    checkOutDate: searchParams.get('checkOutDate') || '',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
     bedrooms: searchParams.get('bedrooms') || '',
@@ -60,9 +63,10 @@ const PropertyList = () => {
   const propertyTypes = [
     'studio', 'apartment', 'house', 'villa',
     'office', 'shop', 'warehouse',
-    'hotel', 'guest-house', 'lodge', 'resort', 'serviced-apartment', 'airbnb-unit', 'holiday-home',
+    'hotel', 'guest-house', 'lodge', 'resort', 'serviced-apartment',
     'commercial'
   ]
+  const roomTypes = ['Single', 'Double', 'Twin', 'Suite', 'Family', 'Deluxe']
   const availableAmenities = [
     'Parking', 'Security', 'Water', 'Electricity', 'Air Conditioning', 'Furnished', 'WiFi', 'Kitchen',
     'Swimming Pool', 'Gym', 'Room Service', 'Housekeeping', 'Conference Room', 'Generator'
@@ -185,6 +189,9 @@ const PropertyList = () => {
       propertyCategory: '',
       propertyType: '',
       rentalType: '',
+      roomType: '',
+      checkInDate: '',
+      checkOutDate: '',
       minPrice: '',
       maxPrice: '',
       bedrooms: '',
@@ -231,7 +238,7 @@ const PropertyList = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Find Your Perfect Rental</h1>
-          <p className="text-gray-600">Browse through verified properties across Cameroon</p>
+          <p className="text-gray-600">Browse verified long-term rentals and short-term accommodation providers across Cameroon</p>
         </div>
 
         {/* Search Bar */}
@@ -250,7 +257,7 @@ const PropertyList = () => {
                 <Search className="h-5 w-5 text-gray-400 mr-3" />
                 <input
                   type="text"
-                  placeholder="Search by location, property type..."
+                  placeholder="Search by city, hotel name, guest house, or property type..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
                   className="w-full focus:outline-none"
@@ -346,6 +353,40 @@ const PropertyList = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Room Type (Accommodation)</label>
+                <select
+                  value={filters.roomType}
+                  onChange={(e) => handleFilterChange('roomType', e.target.value)}
+                  className="input-field"
+                >
+                  <option value="">Any room type</option>
+                  {roomTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Check-in date</label>
+                <input
+                  type="date"
+                  value={filters.checkInDate}
+                  onChange={(e) => handleFilterChange('checkInDate', e.target.value)}
+                  className="input-field"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Check-out date</label>
+                <input
+                  type="date"
+                  value={filters.checkOutDate}
+                  onChange={(e) => handleFilterChange('checkOutDate', e.target.value)}
+                  className="input-field"
+                />
               </div>
 
               <div>
@@ -467,7 +508,7 @@ const PropertyList = () => {
           <div className="text-center py-12">
             <HomeIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
-            <p className="text-gray-600">Try adjusting your filters or search criteria</p>
+            <p className="text-gray-600">Try adjusting your filters for rentals or hotels and guest houses</p>
           </div>
         ) : (
           <>

@@ -18,7 +18,7 @@ import {
   ArrowLeft,
   CheckCircle
 } from 'lucide-react'
-import { propertyAPI, favoriteAPI, inquiryAPI } from '../../services/api'
+import { propertyAPI, favoriteAPI, inquiryAPI, notificationAPI } from '../../services/api'
 import { useAuth } from '../../context/useAuth'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import toast from 'react-hot-toast'
@@ -27,7 +27,13 @@ import { formatPropertyPrice, formatXaf } from '../../utils/currency'
 const PropertyDetail = () => {
   const { id } = useParams()
   const [showInquiryModal, setShowInquiryModal] = useState(false)
+  const [showBookingModal, setShowBookingModal] = useState(false)
   const [inquiryMessage, setInquiryMessage] = useState('')
+  const [bookingMessage, setBookingMessage] = useState('')
+  const [bookingRoomType, setBookingRoomType] = useState('')
+  const [bookingGuests, setBookingGuests] = useState('')
+  const [checkInDate, setCheckInDate] = useState('')
+  const [checkOutDate, setCheckOutDate] = useState('')
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -93,6 +99,26 @@ const PropertyDetail = () => {
     }
   )
 
+  const sendBookingRequestMutation = useMutation(
+    notificationAPI.sendPropertyRequest,
+    {
+      onSuccess: () => {
+        toast.success('Booking request submitted successfully!')
+        setShowBookingModal(false)
+        setBookingMessage('')
+        setBookingRoomType('')
+        setBookingGuests('')
+        setCheckInDate('')
+        setCheckOutDate('')
+        queryClient.invalidateQueries('tenantRequests')
+        queryClient.invalidateQueries('userNotifications')
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to submit booking request')
+      }
+    }
+  )
+
   const handleToggleFavorite = () => {
     if (!user) {
       toast.error('Please login to save favorites')
@@ -113,6 +139,40 @@ const PropertyDetail = () => {
     sendInquiryMutation.mutate({
       propertyId: id,
       message: inquiryMessage
+    })
+  }
+
+  const handleSubmitBookingRequest = () => {
+    if (!user) {
+      toast.error('Please login to submit booking requests')
+      return
+    }
+
+    if (!checkInDate || !checkOutDate) {
+      toast.error('Please select check-in and check-out dates')
+      return
+    }
+
+    if (new Date(checkOutDate) <= new Date(checkInDate)) {
+      toast.error('Check-out date must be after check-in date')
+      return
+    }
+
+    if (!bookingMessage.trim()) {
+      toast.error('Please add a short booking message')
+      return
+    }
+
+    sendBookingRequestMutation.mutate({
+      propertyId: id,
+      propertyType: property?.propertyType,
+      accommodationType: property?.propertyType,
+      roomType: bookingRoomType || undefined,
+      guests: bookingGuests ? Number(bookingGuests) : undefined,
+      checkInDate,
+      checkOutDate,
+      city: property?.location?.city,
+      message: bookingMessage.trim()
     })
   }
 
@@ -137,6 +197,7 @@ const PropertyDetail = () => {
 
   const property = propertyData
   const isTaken = property?.listingStatus === 'taken'
+  const isAccommodation = property?.propertyCategory === 'hospitality'
 
   if (isLoading) {
     return (
@@ -304,6 +365,14 @@ const PropertyDetail = () => {
                         {property.hospitalityInfo?.roomsAvailable || 0} rooms, max {property.hospitalityInfo?.maxOccupancy || 0} guests
                       </p>
                     </div>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 md:col-span-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Room Types</p>
+                      <p className="mt-1 text-sm font-medium text-gray-900">
+                        {Array.isArray(property.hospitalityInfo?.roomTypes) && property.hospitalityInfo.roomTypes.length > 0
+                          ? property.hospitalityInfo.roomTypes.join(', ')
+                          : 'Standard rooms'}
+                      </p>
+                    </div>
                   </>
                 )}
                 {property.propertyCategory === 'residential' && (
@@ -401,13 +470,17 @@ const PropertyDetail = () => {
                     toast.error('This property is already taken and no longer accepting inquiries.')
                     return
                   }
+                  if (isAccommodation) {
+                    setShowBookingModal(true)
+                    return
+                  }
                   setShowInquiryModal(true)
                 }}
                 className="w-full btn-primary disabled:opacity-60"
                 disabled={isTaken}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
-                {isTaken ? 'Property Taken' : 'Contact Landlord'}
+                {isTaken ? 'Listing Unavailable' : isAccommodation ? 'Reserve Room' : 'Contact Landlord'}
               </button>
             </div>
 
@@ -474,6 +547,94 @@ const PropertyDetail = () => {
                 className="flex-1 btn-primary disabled:opacity-50"
               >
                 {sendInquiryMutation.isLoading ? <LoadingSpinner size="sm" /> : 'Send Message'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBookingModal && !isTaken && isAccommodation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Reserve room</h3>
+              <button
+                onClick={() => setShowBookingModal(false)}
+                className="rounded-lg p-1 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-gray-600">
+              Request a booking at {property.title}. The provider will confirm, cancel, or update your booking status.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Check-in</label>
+                <input
+                  type="date"
+                  value={checkInDate}
+                  onChange={(event) => setCheckInDate(event.target.value)}
+                  className="input-field w-full"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Check-out</label>
+                <input
+                  type="date"
+                  value={checkOutDate}
+                  onChange={(event) => setCheckOutDate(event.target.value)}
+                  className="input-field w-full"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Room type</label>
+                <input
+                  type="text"
+                  value={bookingRoomType}
+                  onChange={(event) => setBookingRoomType(event.target.value)}
+                  placeholder="Single, Double, Suite"
+                  className="input-field w-full"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Guests</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={bookingGuests}
+                  onChange={(event) => setBookingGuests(event.target.value)}
+                  className="input-field w-full"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Booking message</label>
+              <textarea
+                value={bookingMessage}
+                onChange={(event) => setBookingMessage(event.target.value)}
+                placeholder="Hello, I would like to reserve a room for these dates."
+                className="input-field w-full resize-none"
+                rows={4}
+              />
+            </div>
+
+            <div className="mt-4 flex space-x-3">
+              <button
+                onClick={() => setShowBookingModal(false)}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitBookingRequest}
+                disabled={sendBookingRequestMutation.isLoading}
+                className="flex-1 btn-primary disabled:opacity-50"
+              >
+                {sendBookingRequestMutation.isLoading ? <LoadingSpinner size="sm" /> : 'Send booking request'}
               </button>
             </div>
           </div>

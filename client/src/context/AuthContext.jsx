@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from 'react-query'
 import { authAPI } from '../services/api'
 import toast from 'react-hot-toast'
 import { getSavedLanguage, saveLanguage } from '../utils/preferences'
@@ -14,6 +15,26 @@ const normalizeLanguage = (language, fallback = 'en') => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  const clearAuthSession = () => {
+    setUser(null)
+    queryClient.clear()
+    localStorage.removeItem('user')
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+  }
+
+  useEffect(() => {
+    const handleExternalLogout = () => {
+      clearAuthSession()
+    }
+
+    window.addEventListener('auth:logout', handleExternalLogout)
+    return () => {
+      window.removeEventListener('auth:logout', handleExternalLogout)
+    }
+  }, [queryClient])
 
   const persistUserAndLanguage = (userData, fallbackLanguage = getSavedLanguage()) => {
     const normalizedLanguage = normalizeLanguage(
@@ -151,8 +172,14 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = async () => {
-    await clearSensitiveData()
-    setUser(null)
+    clearAuthSession()
+
+    try {
+      clearClientSessionData({ hardClear: true })
+    } catch (error) {
+      console.warn('Logout cleanup warning:', error)
+    }
+
     toast.success('Logged out successfully')
   }
 

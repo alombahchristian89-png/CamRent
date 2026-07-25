@@ -5,6 +5,7 @@ const { supabase, sanitizeUserForAuth, mapUser } = require('../services/supabase
 const { logActivity } = require('../services/activityLogger');
 const crypto = require('crypto');
 const { sendPasswordResetEmail } = require('../services/emailService');
+const { ensurePasswordResetColumns } = require('../utils/ensurePasswordResetColumns');
 
 const getMissingUsersColumnName = (error) => {
   const message = String(error?.message || '');
@@ -17,6 +18,13 @@ const getMissingUsersColumnName = (error) => {
   return null;
 };
 
+const PASSWORD_RESET_COLUMNS = new Set(['reset_password_token', 'reset_password_expires']);
+
+const isMissingPasswordResetColumnError = (error) => {
+  const missingColumn = getMissingUsersColumnName(error);
+  return Boolean(missingColumn && PASSWORD_RESET_COLUMNS.has(missingColumn));
+};
+
 const normalizePhone = (phone) => {
   if (!phone) return null;
   const cleaned = String(phone).trim().replace(/[^\d+]/g, '');
@@ -25,6 +33,16 @@ const normalizePhone = (phone) => {
     return `+${cleaned.slice(1).replace(/\+/g, '')}`;
   }
   return cleaned.replace(/\+/g, '');
+};
+
+const isValidEmail = (value) => {
+  if (!value) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+};
+
+const isValidPhone = (value) => {
+  if (!value) return false;
+  return /^\+?[1-9]\d{7,14}$/.test(String(value));
 };
 
 // Generate JWT tokens
@@ -53,10 +71,47 @@ const register = async (req, res) => {
     }
 
     const { name, email, password, role, phone, language } = req.body;
+    const safeName = String(name || '').trim();
     const safeRole = role === 'landlord' ? 'landlord' : 'tenant';
     const safeLanguage = language === 'fr' ? 'fr' : 'en';
     const safeEmail = String(email || '').trim().toLowerCase();
     const safePhone = normalizePhone(phone);
+
+    if (!safeName || safeName.length < 2 || safeName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be between 2 and 100 characters'
+      });
+    }
+
+    if (!isValidEmail(safeEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email'
+      });
+    }
+
+    if (safePhone && !isValidPhone(safePhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number'
+      });
+    }
+
+    const { data: existingNameUser, error: existingNameError } = await supabase
+      .from('users')
+      .select('id')
+      .ilike('name', safeName)
+      .maybeSingle();
+
+    if (existingNameError) throw existingNameError;
+
+    if (existingNameUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this name already exists'
+      });
+    }
 
     // Check if user already exists
     const { data: existingUser, error: existingUserError } = await supabase
@@ -97,7 +152,7 @@ const register = async (req, res) => {
     // Create new user with schema-cache fallback for optional language columns.
     let userRow = null;
     let insertPayload = {
-      name,
+      name: safeName,
       email: safeEmail,
       phone: safePhone,
       password: hashedPassword,
@@ -405,6 +460,8 @@ const updateProfile = async (req, res) => {
 // Forgot password
 const forgotPassword = async (req, res) => {
   try {
+    await ensurePasswordResetColumns();
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -423,7 +480,15 @@ const forgotPassword = async (req, res) => {
       .eq('email', email)
       .maybeSingle();
 
-    if (userError) throw userError;
+    if (userError) {
+      if (isMissingPasswordResetColumnError(userError)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Password reset is temporarily unavailable. Database migration is required.'
+        });
+      }
+      throw userError;
+    }
 
     if (!userRow) {
       return res.status(404).json({
@@ -448,7 +513,15 @@ const forgotPassword = async (req, res) => {
       .select('*')
       .single();
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      if (isMissingPasswordResetColumnError(updateError)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Password reset is temporarily unavailable. Database migration is required.'
+        });
+      }
+      throw updateError;
+    }
 
     const user = mapUser(updatedUser);
 
@@ -463,7 +536,7 @@ const forgotPassword = async (req, res) => {
     } else {
       res.status(500).json({
         success: false,
-        message: 'Failed to send reset email'
+        message: emailResult.error || 'Failed to send reset email'
       });
     }
   } catch (error) {
@@ -478,6 +551,8 @@ const forgotPassword = async (req, res) => {
 // Reset password
 const resetPassword = async (req, res) => {
   try {
+    await ensurePasswordResetColumns();
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({
@@ -496,7 +571,15 @@ const resetPassword = async (req, res) => {
       .eq('reset_password_token', token)
       .maybeSingle();
 
-    if (userError) throw userError;
+    if (userError) {
+      if (isMissingPasswordResetColumnError(userError)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Password reset is temporarily unavailable. Database migration is required.'
+        });
+      }
+      throw userError;
+    }
 
     if (!userRow || !userRow.reset_password_expires || new Date(userRow.reset_password_expires).getTime() <= Date.now()) {
       return res.status(400).json({
@@ -519,7 +602,15 @@ const resetPassword = async (req, res) => {
       })
       .eq('id', userRow.id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      if (isMissingPasswordResetColumnError(updateError)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Password reset is temporarily unavailable. Database migration is required.'
+        });
+      }
+      throw updateError;
+    }
 
     res.json({
       success: true,

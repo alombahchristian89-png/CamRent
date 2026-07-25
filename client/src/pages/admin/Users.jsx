@@ -23,6 +23,18 @@ const validatePasswordStrength = (password) => {
   return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)
 }
 
+const normalizePhone = (phone) => {
+  const cleaned = String(phone || '').trim().replace(/[^\d+]/g, '')
+  if (!cleaned) return ''
+  if (cleaned.startsWith('+')) {
+    return `+${cleaned.slice(1).replace(/\+/g, '')}`
+  }
+  return cleaned.replace(/\+/g, '')
+}
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+const isValidPhone = (value) => /^\+?[1-9]\d{7,14}$/.test(String(value || ''))
+
 const AdminUsers = () => {
   const [language, setLanguage] = useState('en')
   const [searchQuery, setSearchQuery] = useState('')
@@ -230,10 +242,29 @@ const AdminUsers = () => {
   const handleSaveUserDetails = () => {
     if (!selectedUser) return
 
+    const safeName = String(editForm.name || '').trim()
+    const safeEmail = String(editForm.email || '').trim().toLowerCase()
+    const safePhone = normalizePhone(editForm.phone)
+
+    if (safeName.length < 2 || safeName.length > 100) {
+      toast.error(t('adminUsersErrorNameInvalid', 'Name must be between 2 and 100 characters'))
+      return
+    }
+
+    if (!isValidEmail(safeEmail)) {
+      toast.error(t('adminUsersErrorEmailInvalid', 'Please provide a valid email'))
+      return
+    }
+
+    if (safePhone && !isValidPhone(safePhone)) {
+      toast.error(t('adminUsersErrorPhoneInvalid', 'Please provide a valid phone number'))
+      return
+    }
+
     const payload = {
-      name: editForm.name,
-      email: editForm.email,
-      phone: editForm.phone
+      name: safeName,
+      email: safeEmail,
+      phone: safePhone
     }
 
     updateUserMutation.mutate({ id: selectedUser._id, payload })
@@ -297,12 +328,12 @@ const AdminUsers = () => {
                 className="w-full focus:outline-none"
               />
             </div>
-            <div className="flex items-center space-x-2">
-              <Filter className="h-5 w-5 text-gray-400 mr-2" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <Filter className="hidden sm:block h-5 w-5 text-gray-400" />
               <select
                 value={filterRole}
-                  onChange={handleRoleChange}
-                className="input-field"
+                onChange={handleRoleChange}
+                className="input-field w-full sm:w-auto"
               >
                 <option value="all">{t('adminUsersAllRoles', 'All Roles')}</option>
                 <option value="tenant">{t('adminUsersRoleTenants', 'Tenants')}</option>
@@ -311,8 +342,8 @@ const AdminUsers = () => {
               </select>
               <select
                 value={filterStatus}
-                  onChange={handleStatusChange}
-                className="input-field"
+                onChange={handleStatusChange}
+                className="input-field w-full sm:w-auto"
               >
                 <option value="all">{t('adminUsersAllStatus', 'All Status')}</option>
                 <option value="true">{t('adminUsersStatusActive', 'Active')}</option>
@@ -333,7 +364,80 @@ const AdminUsers = () => {
           </div>
         ) : (
           <div className="bg-white rounded-2xl shadow-soft overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="md:hidden space-y-3 p-3">
+              {users?.map((user) => (
+                <article key={user._id} className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                        user.role === 'admin' ? 'bg-red-100' :
+                        user.role === 'landlord' ? 'bg-blue-100' :
+                        'bg-green-100'
+                      }`}>
+                        <User className={`h-5 w-5 ${
+                          user.role === 'admin' ? 'text-red-600' :
+                          user.role === 'landlord' ? 'text-blue-600' :
+                          'text-green-600'
+                        }`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+                        <p className="text-xs text-gray-500">{t('adminUsersIdPrefix', 'ID')}: {formatShortId(user._id)}</p>
+                      </div>
+                    </div>
+                    <span className={`badge ${user.isActive ? 'badge-success' : 'badge-danger'}`}>
+                      {user.isActive ? t('adminUsersStatusActive', 'Active') : t('adminUsersStatusBanned', 'Banned')}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 space-y-2 text-sm">
+                    <p className="text-gray-900 break-all">{user.email}</p>
+                    {user.phone && <p className="text-gray-600">{user.phone}</p>}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`badge capitalize ${
+                        user.role === 'admin' ? 'badge-danger' :
+                        user.role === 'landlord' ? 'badge-primary' :
+                        'badge-success'
+                      }`}>
+                        {getRoleLabel(user.role)}
+                      </span>
+                      <span className="text-xs text-gray-500">{new Date(user.createdAt).toLocaleDateString(locale)}</span>
+                    </div>
+                    {user.role === 'landlord' && user.verificationStatus && (
+                      <p className="text-xs text-gray-500">{getVerificationLabel(user.verificationStatus)}</p>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={() => handleOpenUser(user)}
+                      className="inline-flex items-center gap-1.5 text-primary hover:text-primary-hover text-sm font-medium"
+                      title={t('adminUsersViewDetails', 'View details')}
+                    >
+                      <Eye className="h-4 w-4" />
+                      {t('adminUsersViewDetails', 'View details')}
+                    </button>
+                    {user.role !== 'admin' && (
+                      <button
+                        onClick={() => handleBanUser(user._id, !user.isActive)}
+                        disabled={banUserMutation.isLoading}
+                        className={`inline-flex items-center gap-1.5 text-sm font-medium ${
+                          user.isActive
+                            ? 'text-red-600 hover:text-red-800'
+                            : 'text-green-600 hover:text-green-800'
+                        }`}
+                        title={user.isActive ? t('adminUsersBanUser', 'Ban User') : t('adminUsersActivateUser', 'Activate User')}
+                      >
+                        {user.isActive ? <Ban className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                        {user.isActive ? t('adminUsersBanUser', 'Ban User') : t('adminUsersActivateUser', 'Activate User')}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -445,7 +549,28 @@ const AdminUsers = () => {
         {/* Pagination */}
         {pagination && pagination.pages > 1 && (
           <div className="flex justify-center mt-8">
-            <div className="flex items-center space-x-2">
+            <div className="w-full max-w-3xl">
+              <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 sm:hidden">
+                <button
+                  onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
+                  disabled={pagination.page === 1}
+                  className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t('adminUsersPrevious', 'Previous')}
+                </button>
+                <span className="text-sm text-gray-600">
+                  {pagination.page} / {pagination.pages}
+                </span>
+                <button
+                  onClick={() => setPage((currentPage) => Math.min(pagination.pages, currentPage + 1))}
+                  disabled={pagination.page === pagination.pages}
+                  className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t('adminUsersNext', 'Next')}
+                </button>
+              </div>
+
+              <div className="hidden sm:flex items-center justify-center space-x-2">
               <button
                 onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
                 disabled={pagination.page === 1}
@@ -475,6 +600,7 @@ const AdminUsers = () => {
               >
                 {t('adminUsersNext', 'Next')}
               </button>
+              </div>
             </div>
           </div>
         )}

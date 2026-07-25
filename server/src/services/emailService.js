@@ -3,15 +3,61 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+const parseBooleanEnv = (value, fallback = false) => {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no') return false;
+  return fallback;
+};
+
+const getFrontendBaseUrl = () => {
+  const rawUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  return rawUrl.replace(/\/+$/, '');
+};
+
+const readEnvValue = (name) => String(process.env[name] || '').trim().replace(/^['"]|['"]$/g, '');
+
+const normalizeSmtpPassword = (value) => String(value || '').replace(/\s+/g, '');
+
+const buildFromAddress = () => {
+  const fromAddress = readEnvValue('EMAIL_FROM_ADDRESS');
+  const fromName = readEnvValue('EMAIL_FROM_NAME');
+  const configuredFrom = readEnvValue('EMAIL_FROM');
+
+  if (fromAddress) {
+    return fromName ? `${fromName} <${fromAddress}>` : fromAddress;
+  }
+
+  return configuredFrom;
+};
+
+const htmlToText = (html) => String(html || '')
+  .replace(/<\s*br\s*\/?>/gi, '\n')
+  .replace(/<\s*\/p\s*>/gi, '\n\n')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&nbsp;/gi, ' ')
+  .replace(/&amp;/gi, '&')
+  .replace(/&lt;/gi, '<')
+  .replace(/&gt;/gi, '>')
+  .replace(/&quot;/gi, '"')
+  .replace(/&#39;/gi, "'")
+  .replace(/\s+\n/g, '\n')
+  .replace(/[ \t]{2,}/g, ' ')
+  .trim();
+
 // Create email transporter
 const createTransporter = () => {
+  const port = Number(readEnvValue('EMAIL_PORT') || 587);
+  const secure = parseBooleanEnv(process.env.EMAIL_SECURE, port === 465);
+
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: false, // true for 465, false for other ports
+    host: readEnvValue('EMAIL_HOST'),
+    port,
+    secure,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: readEnvValue('EMAIL_USER'),
+      pass: normalizeSmtpPassword(readEnvValue('EMAIL_PASS')),
     },
   });
 };
@@ -19,18 +65,73 @@ const createTransporter = () => {
 // Send email function
 const sendEmail = async (to, subject, html) => {
   try {
+    const emailHost = readEnvValue('EMAIL_HOST');
+    const emailUser = readEnvValue('EMAIL_USER');
+    const emailPass = normalizeSmtpPassword(readEnvValue('EMAIL_PASS'));
+    const emailFrom = buildFromAddress();
+    const replyTo = readEnvValue('EMAIL_REPLY_TO');
+
+    if (!emailHost || !emailUser || !emailPass || !emailFrom) {
+      return { success: false, error: 'Email configuration is incomplete' };
+    }
+
+    console.info('[Email] Preparing message', {
+      to,
+      subject,
+      host: emailHost,
+      from: emailFrom,
+      replyTo: replyTo || undefined,
+    });
+
     const transporter = createTransporter();
+
+    try {
+      await transporter.verify();
+    } catch (verifyError) {
+      return { success: false, error: `Email server verification failed: ${verifyError.message}` };
+    }
     
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: emailFrom,
       to,
       subject,
       html,
+      text: htmlToText(html),
     };
 
+    if (replyTo) {
+      mailOptions.replyTo = replyTo;
+    }
+
     const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    if (Array.isArray(info?.rejected) && info.rejected.length > 0 && (!Array.isArray(info?.accepted) || info.accepted.length === 0)) {
+      console.warn('[Email] Delivery rejected', {
+        to,
+        subject,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        response: info.response,
+      });
+      return { success: false, error: `Email rejected for recipient(s): ${info.rejected.join(', ')}` };
+    }
+
+    console.info('[Email] Delivery accepted', {
+      to,
+      subject,
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      response: info.response,
+      envelope: info.envelope,
+    });
+    return {
+      success: true,
+      messageId: info.messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+      response: info.response,
+      envelope: info.envelope,
+    };
   } catch (error) {
     console.error('Email sending failed:', error);
     return { success: false, error: error.message };
@@ -57,7 +158,7 @@ const sendNewPropertyBroadcastEmail = async ({ tenants = [], property, landlordN
   const bathrooms = Number(property?.bathrooms || 0);
   const monthlyPrice = formatCurrency(property?.price);
   const landlordDisplayName = escapeHtml(landlordName || 'A verified landlord');
-  const propertyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/properties/${property?._id || property?.id}`;
+  const propertyUrl = `${getFrontendBaseUrl()}/properties/${property?._id || property?.id}`;
 
   const recipients = (tenants || [])
     .filter((tenant) => tenant?.email)
@@ -144,7 +245,7 @@ const sendPropertyTakenFavoriteNotificationEmail = async ({ recipients = [], pro
   const address = escapeHtml(property?.location?.address || 'See listing for details');
   const monthlyPrice = formatCurrency(property?.price);
   const landlordDisplayName = escapeHtml(landlordName || 'The landlord');
-  const propertyUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/properties/${property?._id || property?.id}`;
+  const propertyUrl = `${getFrontendBaseUrl()}/properties/${property?._id || property?.id}`;
 
   const favoriteRecipients = (recipients || [])
     .filter((recipient) => recipient?.email)
@@ -229,9 +330,18 @@ const sendPropertyTakenFavoriteNotificationEmail = async ({ recipients = [], pro
 
 // Send password reset email
 const sendPasswordResetEmail = async (user, resetToken) => {
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+  const resetUrl = `${getFrontendBaseUrl()}/reset-password?token=${resetToken}`;
+  const recipientEmail = user?.email;
+  const recipientName = user?.name || 'User';
   
   const subject = 'CAMRENT - Password Reset Request';
+  console.info('[PasswordResetEmail] Starting delivery', {
+    to: recipientEmail,
+    userId: user?._id || user?.id,
+    subject,
+    frontendUrl: getFrontendBaseUrl(),
+  });
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -292,7 +402,7 @@ const sendPasswordResetEmail = async (user, resetToken) => {
       
       <div class="content">
         <h2>Password Reset Request</h2>
-        <p>Hello ${user.name},</p>
+        <p>Hello ${escapeHtml(recipientName)},</p>
         <p>We received a request to reset your password for your CAMRENT account. Click the button below to reset your password:</p>
         
         <div style="text-align: center;">
@@ -319,7 +429,20 @@ const sendPasswordResetEmail = async (user, resetToken) => {
     </html>
   `;
 
-  return await sendEmail(user.email, subject, html);
+  const result = await sendEmail(recipientEmail, subject, html);
+
+  console.info('[PasswordResetEmail] Delivery result', {
+    to: recipientEmail,
+    userId: user?._id || user?.id,
+    success: result.success,
+    messageId: result.messageId,
+    accepted: result.accepted,
+    rejected: result.rejected,
+    response: result.response,
+    error: result.error,
+  });
+
+  return result;
 };
 
 // Send welcome email
@@ -403,7 +526,7 @@ const sendWelcomeEmail = async (user) => {
         </div>
         
         <div style="text-align: center;">
-          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button">Get Started</a>
+          <a href="${getFrontendBaseUrl()}" class="button">Get Started</a>
         </div>
         
         <p>If you have any questions, feel free to contact our support team. We're here to help!</p>
@@ -500,7 +623,7 @@ const sendVerificationApprovedEmail = async (user) => {
         </ul>
         
         <div style="text-align: center;">
-          <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/landlord/dashboard" class="button">Go to Your Dashboard</a>
+          <a href="${getFrontendBaseUrl()}/landlord/dashboard" class="button">Go to Your Dashboard</a>
         </div>
         
         <p>Thank you for choosing CAMRENT. We look forward to helping you find great tenants for your properties!</p>

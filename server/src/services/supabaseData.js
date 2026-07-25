@@ -58,11 +58,33 @@ const mapProperty = (row, landlord = null) => {
     ? (row.property_category || contactInfo.propertyCategory)
     : 'residential';
   const columnHospitalityInfo = toObject(row.hospitality_info);
+  const contactAccommodationInfo = toObject(contactInfo?.accommodationInfo || contactInfo?.hospitalityInfo);
   const hospitalityInfo = {
-    checkInTime: columnHospitalityInfo?.checkInTime || contactInfo?.hospitalityInfo?.checkInTime || '',
-    checkOutTime: columnHospitalityInfo?.checkOutTime || contactInfo?.hospitalityInfo?.checkOutTime || '',
-    roomsAvailable: Number(columnHospitalityInfo?.roomsAvailable || contactInfo?.hospitalityInfo?.roomsAvailable || 0),
-    maxOccupancy: Number(columnHospitalityInfo?.maxOccupancy || contactInfo?.hospitalityInfo?.maxOccupancy || 0)
+    checkInTime: columnHospitalityInfo?.checkInTime || contactAccommodationInfo?.checkInTime || '',
+    checkOutTime: columnHospitalityInfo?.checkOutTime || contactAccommodationInfo?.checkOutTime || '',
+    roomsAvailable: Number(columnHospitalityInfo?.roomsAvailable || contactAccommodationInfo?.roomsAvailable || 0),
+    maxOccupancy: Number(columnHospitalityInfo?.maxOccupancy || contactAccommodationInfo?.maxOccupancy || 0),
+    roomTypes: Array.isArray(columnHospitalityInfo?.roomTypes)
+      ? columnHospitalityInfo.roomTypes
+      : (Array.isArray(contactAccommodationInfo?.roomTypes) ? contactAccommodationInfo.roomTypes : []),
+    bookingAvailability: {
+      instantBooking: columnHospitalityInfo?.bookingAvailability?.instantBooking === true
+        || contactAccommodationInfo?.bookingAvailability?.instantBooking === true,
+      minimumStayNights: Number(
+        columnHospitalityInfo?.bookingAvailability?.minimumStayNights
+        || contactAccommodationInfo?.bookingAvailability?.minimumStayNights
+        || 1
+      ),
+      maximumStayNights: Number(
+        columnHospitalityInfo?.bookingAvailability?.maximumStayNights
+        || contactAccommodationInfo?.bookingAvailability?.maximumStayNights
+        || 30
+      )
+    }
+  };
+  const accommodationInfo = {
+    ...hospitalityInfo,
+    accommodationType: row.property_type
   };
   const columnResidentialInfo = toObject(row.residential_info);
   const residentialInfo = {
@@ -91,6 +113,7 @@ const mapProperty = (row, landlord = null) => {
     propertyCategory,
     pricing,
     hospitalityInfo,
+    accommodationInfo,
     residentialInfo,
     views: Number(row.views || 0),
     inquiries: Number(row.inquiries || 0),

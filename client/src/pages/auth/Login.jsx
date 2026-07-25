@@ -80,6 +80,10 @@ const Login = () => {
 
         <div className="bg-white rounded-2xl shadow-soft p-8">
           <form ref={formRef} className="space-y-6" onSubmit={handleSubmit(onSubmit)} autoComplete="off" noValidate>
+            <div className="hidden" aria-hidden="true">
+              <input type="text" name="username" autoComplete="username" tabIndex={-1} />
+              <input type="password" name="current-password" autoComplete="current-password" tabIndex={-1} />
+            </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
@@ -97,6 +101,7 @@ const Login = () => {
                     }
                   })}
                   type="email"
+                  name="email"
                   autoComplete="off"
                   autoCapitalize="none"
                   autoCorrect="off"
@@ -127,7 +132,8 @@ const Login = () => {
                     }
                   })}
                   type="password"
-                  autoComplete="off"
+                  name="password"
+                  autoComplete="new-password"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}

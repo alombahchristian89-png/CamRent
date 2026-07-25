@@ -45,6 +45,12 @@ const Home = () => {
 
   const handleSearch = (e) => {
     e.preventDefault()
+
+    if (!user) {
+      navigate('/register', { replace: true })
+      return
+    }
+
     const params = new URLSearchParams()
     if (searchQuery) params.append('search', searchQuery)
     if (selectedCity) params.append('city', selectedCity)

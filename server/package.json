@@ -10,7 +10,8 @@
     "bootstrap:db": "node src/utils/bootstrapDatabase.js",
     "verify:supabase": "node src/utils/verifySupabase.js",
     "setup:db": "node src/utils/setupDatabase.js",
-    "setup": "node setup-wizard.js"
+    "setup": "node setup-wizard.js",
+    "migrate:password-reset": "node scripts/applyPasswordResetMigration.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
